@@ -1,5 +1,6 @@
 #include "bms_soc.h"
 #include <limits.h>
+#include <stddef.h>
 
 #define BMS_SOC_PERMILLE_MAX 1000U
 #define BMS_MILLISECONDS_PER_SECOND 1000LL
