@@ -1,9 +1,9 @@
 MEMORY
 {
   FLASH (rx) : ORIGIN = 0x08003000, LENGTH = 50K
-  RAM (xrw)  : ORIGIN = 0x20000000, LENGTH = 8K
+  RAM (xrw)  : ORIGIN = 0x200000C0, LENGTH = 8000
 }
-_estack = ORIGIN(RAM) + LENGTH(RAM);
+_estack = 0x20002000;
 SECTIONS
 {
   .isr_vector : { KEEP(*(.isr_vector)) } > FLASH

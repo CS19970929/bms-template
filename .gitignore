@@ -1,4 +1,5 @@
 build/
+vendor/st/stm32f0_stdperiph_v1.5.0/
 .vs/
 .idea/
 *.user

@@ -1,0 +1,40 @@
+name: firmware-build
+on:
+  pull_request:
+    paths: ["app/**", "bootloader/**", "common/**", "protocol/**", "platform/**", "drivers/**", "cmake/**", "CMakeLists.txt", "CMakePresets.json", "tools/bootstrap_vendor.py", ".github/workflows/firmware-build.yml"]
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  stm32f030c8-gcc-o2:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install ARM GCC
+        run: sudo apt-get update && sudo apt-get install -y cmake ninja-build gcc-arm-none-eabi
+      - name: Bootstrap pinned ST vendor subset
+        run: python3 tools/bootstrap_vendor.py
+      - name: Configure
+        run: cmake --preset f030
+      - name: Build O2 APP and Bootloader
+        run: cmake --build --preset f030
+      - name: Enforce image budgets
+        shell: bash
+        run: |
+          boot=$(stat -c%s build/f030/bms_bootloader.bin)
+          app=$(stat -c%s build/f030/bms_app.bin)
+          echo "boot=$boot bytes app=$app bytes"
+          test "$boot" -le 12288
+          test "$app" -le 51200
+      - name: Upload firmware artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: stm32f030c8-gcc-o2
+          path: |
+            build/f030/*.elf
+            build/f030/*.map
+            build/f030/*.hex
+            build/f030/*.bin
