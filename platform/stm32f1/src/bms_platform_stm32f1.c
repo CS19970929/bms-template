@@ -6,8 +6,6 @@
 
 #define BMS_UART_POLL_LIMIT 1000000UL
 #define BMS_CLOCK_POLL_LIMIT 1000000UL
-#define BMS_F103_FLASH_START 0x08000000UL
-#define BMS_F103_FLASH_PAGE_SIZE 1024U
 
 static int range_in_app(uint32_t address, size_t length)
 {
@@ -142,7 +140,7 @@ void bms_platform_watchdog_reload(void)
 int bms_platform_flash_read(void *ctx, uint32_t address, uint8_t *dst, size_t length)
 {
     (void)ctx;
-    if ((dst == NULL) || (address < BMS_F103_FLASH_START) || (address >= BMS_TARGET_FLASH_END)) return -1;
+    if ((dst == NULL) || (address < BMS_TARGET_BOOT_START) || (address >= BMS_TARGET_FLASH_END)) return -1;
     if (length > (size_t)(BMS_TARGET_FLASH_END - address)) return -1;
     (void)memcpy(dst, (const void *)(uintptr_t)address, length);
     return 0;
@@ -154,7 +152,9 @@ int bms_platform_flash_erase_app(void *ctx)
     (void)ctx;
     FLASH_Unlock();
     FLASH_ClearFlag(FLASH_FLAG_EOP | FLASH_FLAG_PGERR | FLASH_FLAG_WRPRTERR);
-    for (page = BMS_TARGET_APP_START; page < BMS_TARGET_APP_END; page += BMS_F103_FLASH_PAGE_SIZE) {
+    for (page = BMS_TARGET_APP_START;
+         page < BMS_TARGET_APP_END;
+         page += (uint32_t)BMS_TARGET_FLASH_PAGE_SIZE) {
         if (erase_page(page) != 0) {
             FLASH_Lock();
             return -1;
