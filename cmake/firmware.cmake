@@ -58,9 +58,9 @@ function(bms_add_image name kind main_file startup linker define)
     )
 
     if(kind STREQUAL "boot")
-        target_link_libraries(${name} PRIVATE bms_base bms_boot_core bms_platform_mcu)
+        target_link_libraries(${name} PRIVATE bms_base bms_boot_core bms_platform_mcu bms_warnings)
     elseif(kind STREQUAL "app")
-        target_link_libraries(${name} PRIVATE bms_base bms_app_core bms_platform_mcu)
+        target_link_libraries(${name} PRIVATE bms_base bms_app_core bms_platform_mcu bms_warnings)
     else()
         message(FATAL_ERROR "unknown firmware image kind: ${kind}")
     endif()
@@ -132,7 +132,7 @@ if(BMS_GENERATED_MCU_FAMILY STREQUAL "stm32f0")
     target_compile_options(bms_platform_mcu PRIVATE
         ${BMS_CPU_FLAGS} -O2 -ffunction-sections -fdata-sections
     )
-    target_link_libraries(bms_platform_mcu PUBLIC bms_vendor_mcu)
+    target_link_libraries(bms_platform_mcu PUBLIC bms_vendor_mcu PRIVATE bms_warnings)
     set(BMS_STARTUP "${CMAKE_SOURCE_DIR}/platform/stm32f0/startup/startup_stm32f030_gcc.c")
 
 elseif(BMS_GENERATED_MCU_FAMILY STREQUAL "stm32f1")
@@ -178,7 +178,7 @@ elseif(BMS_GENERATED_MCU_FAMILY STREQUAL "stm32f1")
     target_compile_options(bms_platform_mcu PRIVATE
         ${BMS_CPU_FLAGS} -O2 -ffunction-sections -fdata-sections
     )
-    target_link_libraries(bms_platform_mcu PUBLIC bms_vendor_mcu)
+    target_link_libraries(bms_platform_mcu PUBLIC bms_vendor_mcu PRIVATE bms_warnings)
     set(BMS_STARTUP "${CMAKE_SOURCE_DIR}/platform/stm32f1/startup/startup_stm32f103_gcc.c")
 
 else()
