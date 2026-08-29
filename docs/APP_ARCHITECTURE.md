@@ -6,33 +6,32 @@ APP is a cooperative, non-blocking set of services around a hardware-independent
 
 `measurement -> derived values -> protection detection -> protection aggregation -> MOS arbitration -> hardware output`
 
-Side services consume the same validated state: parameter service, NVM/event log, SOC, protocol/diagnostics and low-power manager.
+Side services consume validated state: parameter service, NVM/event log, SOC, state machine, protocol/diagnostics and low-power manager.
 
-## Implemented primitives
+## Implemented portable primitives
 
-- `bms_scheduler`: deterministic periodic dispatch primitive; platform owns the time source.
+- `bms_scheduler`: deterministic periodic dispatch primitive; platform owns time source.
 - `bms_protection`: threshold/hysteresis/delay primitive; no MOS/AFE access.
-- `bms_mos_policy`: arbitrates requested state, software block masks and hardware/AFE block mask.
-- `bms_watchdog_supervisor`: reload is allowed only when all required health bits made progress in the supervision window.
-- `bms_afe_t` + `bms_afe_bus_t`: concrete AFE implementations are adapters behind stable interfaces.
+- `bms_mos_policy`: arbitrates user/system request, software block masks and hardware/AFE block mask.
+- `bms_watchdog_supervisor`: reload is allowed only when all required health bits made progress.
+- `bms_state_machine`: deterministic high-level state transition core with protection-resume semantics.
+- `bms_parameter`: typed access/range validation and staged transaction/commit core.
+- `bms_nvm_record`: versioned CRC-protected redundant-record validation/selection core.
+- `bms_soc`: fixed-period integer coulomb integration, rest tracking, bounded OCV correction and display smoothing.
+- `bms_afe_t` + `bms_afe_bus_t`: concrete AFE implementations remain adapters.
 
-## Planned service boundaries
+## Planned composition services
 
-- `StateService`: owns system state and event-driven transitions.
-- `ParameterService`: validates typed parameters, permissions and atomic commit requests.
-- `NvmService`: owns redundant/versioned persistent records and migration.
-- `SocService`: owns estimated/display SOC; never writes raw measurement ownership.
-- `EventLog`: structured boot/reset/protection/IAP/NVM/parameter/communication events.
-- `ProtocolService`: maps stable service/command IDs to domain APIs.
+`MeasurementService`, multi-item `ProtectionManager`, parameter-schema binding/persistence service, physical `NvmService`, event log, complete protocol services, SOC OCV/product policy and low-power policy.
 
 ## Scheduling rules
 
-No task may block on peripheral completion without a bounded timeout. Long operations must be explicit state machines. ISR code records minimum data/events and exits; protocol parsing, Flash commit and protection policy execute outside ISR context.
+No task blocks on peripheral completion without a bounded timeout. Long operations are explicit state machines. ISR code records minimum data/events and exits; protocol parsing, Flash commit and protection policy execute outside ISR context.
 
 ## Watchdog health contract
 
-A release APP must require at least scheduler/main-loop progress plus critical measurement/AFE, protection and communication/state progress before IWDG reload. A timer ISR must never unconditionally reload the watchdog. New critical services must add a health bit and document its deadline.
+A release APP requires main-loop/scheduler plus critical measurement/AFE, protection/state and communication progress before IWDG reload. New critical services add a health bit and document its deadline; timer ISR never unconditionally reloads IWDG.
 
 ## Hardware release boundary
 
-The current target APP is a platform reference. A product is not hardware-releasable until board polarity, AFE scaling/configuration, MOS topology, hardware protection thresholds, wake sources and HIL evidence are complete.
+Current target APP remains a platform reference. Hardware release additionally requires board polarity, AFE scaling/configuration, MOS topology, hardware protection thresholds, wake sources and HIL evidence.

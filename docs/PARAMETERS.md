@@ -1,27 +1,27 @@
 # Parameter system
 
-Parameters are product configuration data with stable identity, validation and persistence semantics. They are not arbitrary exposed C globals.
+Parameters are typed product configuration data with stable identity, validation and persistence semantics. They are not arbitrary exposed C globals.
 
-## Parameter descriptor
+## Implemented core
 
-Each parameter has: stable ID, symbolic name, type, unit, default, minimum, maximum, access permission, persistence class, optional product/feature applicability and documentation text.
+`bms_parameter` provides descriptors with stable ID, type (`I32/U32/BOOL`), default/min/max, write-access mask and persistence flag. Caller-owned active/staged arrays keep the core allocation-free.
 
-The long-term source of truth is a machine-readable parameter schema that generates firmware identifiers/descriptors, PC metadata and human-readable protocol tables. IDs must never be independently duplicated in C and C#.
+Transaction flow is implemented as:
 
-## Update flow
+`begin copy -> set(id,type,value,caller access) -> per-field validation -> optional cross-field validation -> atomic RAM commit / abort`
 
-`protocol/UI request -> decode -> permission check -> type/range validation -> cross-field validation -> RAM shadow -> apply/commit policy -> atomic NVM commit -> result/event`
+A failed set or cross-field validation does not partially update the active array.
 
-Invalid input never partially updates active configuration. Multi-field changes that have cross-field constraints use a transaction/shadow object.
+## Access
 
-## Permissions
-
-At minimum distinguish read-only telemetry/identity, normal user configuration, service/calibration and factory-only values. Permission policy belongs to the service layer; raw NVM access is not a protocol feature.
+Write masks distinguish User, Service and Factory capability. A descriptor with no matching caller bit is not writable through the transaction API. Read-only/telemetry identity remains outside write transactions.
 
 ## Safety rules
 
-Protection threshold updates must validate relationships such as release vs trip threshold, level ordering, delay bounds and hardware capability. A value accepted by syntax/type alone is not necessarily safe to apply.
+The generic core cannot know protection relationships; cross-field callback is the mandatory extension point for product rules such as release<trip, protection-level ordering or hardware-supported ranges.
 
-## Status
+## Next step / source of truth
 
-Planned. The first implementation will introduce the descriptor/schema core, validation APIs, transaction semantics and host tests before protocol write commands are enabled.
+Current descriptors are a production primitive, not yet the final schema. A machine-readable parameter schema will generate firmware IDs/descriptors, PC metadata and protocol tables. Independent C/C# ID lists remain forbidden.
+
+Status: typed descriptor/transaction core and Host validation tests **Implemented**; schema generation, persistence binding and protocol services **Planned**.

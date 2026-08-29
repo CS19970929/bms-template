@@ -1,27 +1,23 @@
 # Non-volatile storage
 
-NVM provides atomic, versioned persistence for parameters, SOC/runtime checkpoints, event logs and Boot requests without exposing raw Flash semantics to domain code.
+NVM provides atomic/versioned persistence without exposing raw STM32 Flash semantics to domain code.
 
-## Record format
+## Implemented portable record core
 
-A persistent record contains at minimum magic, record/schema version, sequence number, payload length, payload CRC and record/header integrity fields. Records are selected only after structural/range/CRC validation.
+`bms_nvm_record` defines a canonical header: magic, schema version, reserved field, sequence, payload length, payload CRC32 and header CRC32. Header CRC is calculated over explicit little-endian bytes, not compiler struct layout.
 
-## Atomic commit
+Validation rejects wrong magic/schema, oversize/truncated payload, damaged header and damaged payload. `bms_nvm_record_select` chooses the newer valid record from redundant candidates using wrap-aware sequence comparison; one corrupt candidate leaves the other selectable.
 
-Use copy-on-write/redundant slots or a wear-leveled append strategy. Never erase the only known-good committed value before a replacement is fully written and verified. Power loss at every erase/program/commit boundary must leave a deterministic result: previous valid record, new valid record, or explicit default/recovery state.
+## Atomic commit contract
 
-## Versioning and migration
+Physical storage is not implemented in the core. Platform/service implementation must use copy-on-write/redundant slots or wear-leveled append and never erase the only known-good committed record before a replacement is written and verified.
 
-Schema version is independent of firmware version. A migration is explicit, one-way, host-tested and never guesses unknown future layouts. Unsupported/corrupt records fall back according to the owning domain policy and emit diagnostics/event evidence.
+## Versioning/wear
 
-## Wear policy
+Schema version remains independent of firmware version. Runtime/SOC records will declare bounded commit cadence/change threshold; high-rate tasks must not write Flash per sample/integration tick.
 
-High-rate runtime values must not be committed on every sampling/integration tick. Each record class declares minimum commit interval/change threshold and expected lifetime. Event log uses bounded/wear-aware retention.
+## Next verification
 
-## Interfaces
+Add Host Flash backend with erase/program semantics and injected interruption after every physical write/erase/commit step, then bind to F030/F103 range-checked Flash adapters.
 
-Domain services request typed record load/store; platform owns physical Flash page erase/program/read. Domain modules must not include STM32 Flash headers.
-
-## Status
-
-Planned. Host Flash simulation with injected interruption is mandatory before target Flash integration.
+Status: record encode/validate/redundant selection **Implemented**; physical atomic backend/migration/wear policy **Planned**.

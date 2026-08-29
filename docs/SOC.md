@@ -2,31 +2,28 @@
 
 SOC separates physical estimate from user-visible display behavior.
 
-## State
+## Implemented portable core
 
-- `soc_est`: estimator state driven primarily by coulomb integration and bounded calibration.
-- `soc_display`: user-visible state that converges smoothly toward the estimate and endpoint anchors.
+`bms_soc` stores coulomb state in integer milliamp-seconds with a milliamp-millisecond remainder, avoiding floating point and preserving sub-second integration. Current sign convention in the core is positive=charging, negative=discharging.
 
-## Reference timing/policy
+Configuration includes nominal capacity, fixed integration period, current measurement floor, rest-current threshold/rest duration, display slew step, OCV correction step and the reference rule that forbids upward rest correction.
 
-- Current sampling reference cadence: 250 ms.
-- Coulomb integration cadence: fixed 200 ms.
-- Currents below the configured measurement floor (reference 200 mA) may be excluded from integration and corrected over long rest periods.
-- Rest/OCV calibration becomes eligible after at least 10 minutes of qualified rest.
-- During rest calibration, SOC must not jump upward under the reference policy; long-term deviation converges slowly to the accepted OCV error-band boundary.
+Reference product configuration remains: current sampling about 250 ms, SOC integration fixed at 200 ms, measurement floor about 200 mA, qualified rest at least 10 minutes. Those product values are not hardcoded into the generic core.
 
-## Endpoint behavior
+## Behavior
 
-Confirmed full-charge protection/condition may anchor 100%. Discharge endpoint policy must approach/anchor 0% without a large display jump. Display rate limiting/smoothing is independent from estimator correction.
+- `soc_est_permille` is derived from bounded coulomb state.
+- `soc_display_permille` approaches estimate by a configurable maximum step.
+- Current below the configured integration floor is not coulomb-integrated.
+- Rest qualification accumulates only while current magnitude is within the rest threshold.
+- OCV target is rejected before qualified rest; when upward rest correction is forbidden, an OCV target above estimate produces no increase.
+- Accepted OCV correction is rate-limited.
+- Explicit full/empty anchors set estimate and display to 1000/0 permille.
 
-## Capacity/SOH
+## Still outside this core
 
-Capacity learning is a separate state machine and is currently disabled in the initial platform. No unvalidated learned capacity may silently replace configured nominal capacity. SOH must have its own validity indication.
+OCV table lookup/error band, temperature/chemistry selection, endpoint qualification from protection/state facts, persistent checkpoint validity, SOH/capacity learning and user-facing percent conversion remain separate services/policies.
 
-## Persistence
+Capacity learning remains disabled in the initial platform.
 
-SOC/runtime checkpoints use the NVM service with bounded commit rate. A reboot must distinguish valid recent checkpoint from corrupt/stale data.
-
-## Status
-
-Planned in this repository. Implementation must be host-testable with synthetic current/voltage/time traces before AFE coupling.
+Status: integer integration/rest/downward OCV correction/display smoothing/endpoint anchors with Host tests **Implemented**; OCV table, persistence and product endpoint integration **Planned**.

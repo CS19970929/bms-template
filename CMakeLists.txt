@@ -77,9 +77,16 @@ add_library(bms_app_core STATIC
     app/core/src/bms_mos_policy.c
     app/core/src/bms_watchdog_supervisor.c
     app/core/src/bms_scheduler.c
+    app/core/src/bms_state_machine.c
+    app/core/src/bms_parameter.c
+    app/core/src/bms_nvm_record.c
+    app/core/src/bms_soc.c
 )
-target_include_directories(bms_app_core PUBLIC app/core/include)
-target_link_libraries(bms_app_core PRIVATE bms_warnings bms_sanitizers)
+target_include_directories(bms_app_core PUBLIC app/core/include common/include)
+target_link_libraries(bms_app_core
+    PUBLIC bms_base
+    PRIVATE bms_warnings bms_sanitizers
+)
 
 add_library(bms_afe_mock STATIC drivers/afe/src/bms_afe_mock.c)
 target_include_directories(bms_afe_mock PUBLIC drivers/afe/include)
