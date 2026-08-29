@@ -80,14 +80,18 @@ bms_protection_manager_result_t bms_protection_manager_step(const bms_protection
         return BMS_PROTECTION_MANAGER_ERR_ARGUMENT;
     }
 
+    /* Validate the entire rule set before advancing any detector runtime. This
+     * makes configuration failure atomic from the caller's point of view. */
     for (i = 0U; i < count; ++i) {
-        bms_protect_state_t state;
-        int active;
         if (rule_config_valid(&rules[i]) == 0) {
-            output_reset(output);
             return BMS_PROTECTION_MANAGER_ERR_CONFIG;
         }
-        state = bms_protection_step(&runtime[i].detector, &rules[i].detector, values[i], elapsed_ms);
+    }
+
+    for (i = 0U; i < count; ++i) {
+        const bms_protect_state_t state =
+            bms_protection_step(&runtime[i].detector, &rules[i].detector, values[i], elapsed_ms);
+        int active;
         if (rules[i].detector.enabled == 0U) {
             runtime[i].latched = 0U;
         } else if ((rules[i].latch_enabled != 0U) && (state == BMS_PROTECT_ACTIVE)) {

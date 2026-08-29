@@ -18,7 +18,7 @@ Detection and manager code never write FETs. Business/communication code never w
 
 Manager output is directly compatible with the software block-mask inputs of MOS arbitration: aggregate charge mask, aggregate discharge mask, active count and first active ID. Multiple rules may block either direction or both. Block-mask bits are domain reasons; hardware/AFE faults remain a separate higher-priority `hardware_block_mask` in MOS policy.
 
-Rule validation rejects invalid detector enum/enable/latch values, inverted hysteresis (`HIGH: release > trip`, `LOW: release < trip`) and duplicate protection IDs.
+Rule validation rejects invalid detector enum/enable/latch values, inverted hysteresis (`HIGH: release > trip`, `LOW: release < trip`) and duplicate protection IDs. Every `step` validates all per-rule detector configurations before advancing any runtime state, so an invalid configuration fails atomically instead of partially progressing earlier protection timers.
 
 ## Latching
 
@@ -44,6 +44,6 @@ The desired policy after charge over-current with confirmed discharge current, o
 
 ## Verification
 
-Host tests cover manager trip-delay aggregation, direction-specific masks, release delay, latch retention, rejected clear while condition is active, explicit clear, duplicate IDs and invalid hysteresis. Each product protection item still requires threshold±1, delay±1 tick, enable/disable, simultaneous protections and charge/discharge arbitration tests. HIL adds real AFE thresholds, MOS polarity/topology and current reversal behavior.
+Host tests cover manager trip-delay aggregation, direction-specific masks, release delay, latch retention, rejected clear while condition is active, explicit clear, duplicate IDs, invalid hysteresis and atomic rejection of an invalid rule set without partial detector-state advancement. Each product protection item still requires threshold±1, delay±1 tick, enable/disable, simultaneous protections and charge/discharge arbitration tests. HIL adds real AFE thresholds, MOS polarity/topology and current reversal behavior.
 
 Status: detector + multi-rule manager + MOS block arbitration **Implemented**; product protection schema, alarm mapping, reverse-current recovery and real AFE/HIL integration **Planned/Hardware-pending**.

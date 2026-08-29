@@ -108,6 +108,16 @@ if(BMS_BUILD_HOST_TESTS)
         bms_sanitizers
     )
     add_test(NAME bms_host_tests COMMAND bms_host_tests)
+
+    add_executable(bms_protection_manager_atomic_test
+        tests/host/test_protection_manager_atomic.c
+    )
+    target_link_libraries(bms_protection_manager_atomic_test PRIVATE
+        bms_app_core
+        bms_warnings
+        bms_sanitizers
+    )
+    add_test(NAME bms_protection_manager_atomic_test COMMAND bms_protection_manager_atomic_test)
 endif()
 
 if(CMAKE_CROSSCOMPILING)
