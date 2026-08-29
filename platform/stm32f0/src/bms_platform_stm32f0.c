@@ -2,6 +2,9 @@
 #include "stm32f0xx.h"
 #include <string.h>
 
+#define BMS_UART_POLL_LIMIT 1000000UL
+#define BMS_F030_FLASH_PAGE_SIZE 1024U
+
 static int range_in_app(uint32_t address, size_t length)
 {
     uint32_t end;
@@ -11,6 +14,23 @@ static int range_in_app(uint32_t address, size_t length)
     end = address + (uint32_t)length;
     if (end < address) return 0;
     return (end <= BMS_F030_APP_END) ? 1 : 0;
+}
+
+static int erase_page(uint32_t address)
+{
+    return (FLASH_ErasePage(address) == FLASH_COMPLETE) ? 0 : -1;
+}
+
+static int program_bytes(uint32_t address, const uint8_t *data, size_t length)
+{
+    size_t i;
+    if ((data == NULL) || ((address & 1U) != 0U) || ((length & 1U) != 0U)) return -1;
+    for (i = 0U; i < length; i += 2U) {
+        const uint16_t half = (uint16_t)data[i] | ((uint16_t)data[i + 1U] << 8U);
+        if (FLASH_ProgramHalfWord(address + (uint32_t)i, half) != FLASH_COMPLETE) return -1;
+        if (*(const volatile uint16_t *)(uintptr_t)(address + (uint32_t)i) != half) return -1;
+    }
+    return 0;
 }
 
 void bms_platform_clock_init(void)
@@ -47,15 +67,22 @@ int bms_platform_uart_try_read(uint8_t *byte)
     return 1;
 }
 
-void bms_platform_uart_write(const uint8_t *data, size_t length)
+int bms_platform_uart_write(const uint8_t *data, size_t length)
 {
     size_t i;
-    if ((data == NULL) && (length != 0U)) return;
+    if ((data == NULL) && (length != 0U)) return -1;
     for (i = 0U; i < length; ++i) {
-        while (USART_GetFlagStatus(USART1, USART_FLAG_TXE) == RESET) { }
+        uint32_t polls = BMS_UART_POLL_LIMIT;
+        while ((USART_GetFlagStatus(USART1, USART_FLAG_TXE) == RESET) && (polls != 0U)) --polls;
+        if (polls == 0U) return -1;
         USART_SendData(USART1, data[i]);
     }
-    while (USART_GetFlagStatus(USART1, USART_FLAG_TC) == RESET) { }
+    {
+        uint32_t polls = BMS_UART_POLL_LIMIT;
+        while ((USART_GetFlagStatus(USART1, USART_FLAG_TC) == RESET) && (polls != 0U)) --polls;
+        if (polls == 0U) return -1;
+    }
+    return 0;
 }
 
 void bms_platform_watchdog_start(void)
@@ -72,36 +99,60 @@ void bms_platform_watchdog_reload(void) { IWDG_ReloadCounter(); }
 int bms_platform_flash_read(void *ctx, uint32_t address, uint8_t *dst, size_t length)
 {
     (void)ctx;
-    if ((dst == NULL) || (address < BMS_F030_FLASH_START) || (length > (size_t)(BMS_F030_FLASH_END - address))) return -1;
+    if ((dst == NULL) || (address < BMS_F030_FLASH_START) || (address >= BMS_F030_FLASH_END)) return -1;
+    if (length > (size_t)(BMS_F030_FLASH_END - address)) return -1;
     (void)memcpy(dst, (const void *)(uintptr_t)address, length);
     return 0;
 }
 
-int bms_platform_flash_erase_app(void)
+int bms_platform_flash_erase_app(void *ctx)
 {
     uint32_t page;
+    (void)ctx;
     FLASH_Unlock();
     FLASH_ClearFlag(FLASH_FLAG_EOP | FLASH_FLAG_PGERR | FLASH_FLAG_WRPERR);
-    for (page = BMS_F030_APP_START; page < BMS_F030_APP_END; page += 1024U) {
-        if (FLASH_ErasePage(page) != FLASH_COMPLETE) { FLASH_Lock(); return -1; }
+    for (page = BMS_F030_APP_START; page < BMS_F030_APP_END; page += BMS_F030_FLASH_PAGE_SIZE) {
+        if (erase_page(page) != 0) { FLASH_Lock(); return -1; }
         bms_platform_watchdog_reload();
     }
     FLASH_Lock();
     return 0;
 }
 
-int bms_platform_flash_write(uint32_t address, const uint8_t *data, size_t length)
+int bms_platform_flash_write(void *ctx, uint32_t address, const uint8_t *data, size_t length)
 {
-    size_t i;
-    if ((data == NULL) || ((address & 1U) != 0U) || ((length & 1U) != 0U) || (range_in_app(address, length) == 0)) return -1;
+    int result;
+    (void)ctx;
+    if ((data == NULL) || (range_in_app(address, length) == 0)) return -1;
     FLASH_Unlock();
-    for (i = 0U; i < length; i += 2U) {
-        uint16_t half = (uint16_t)data[i] | ((uint16_t)data[i + 1U] << 8U);
-        if (FLASH_ProgramHalfWord(address + (uint32_t)i, half) != FLASH_COMPLETE) { FLASH_Lock(); return -1; }
-        if (*(const volatile uint16_t *)(uintptr_t)(address + (uint32_t)i) != half) { FLASH_Lock(); return -1; }
-    }
+    result = program_bytes(address, data, length);
     FLASH_Lock();
-    return 0;
+    return result;
+}
+
+int bms_platform_metadata_store(void *ctx, bms_boot_meta_state_t state, const bms_image_manifest_t *image)
+{
+    const bms_boot_meta_record_t *const a = (const bms_boot_meta_record_t *)(uintptr_t)BMS_F030_META_A;
+    const bms_boot_meta_record_t *const b = (const bms_boot_meta_record_t *)(uintptr_t)BMS_F030_META_B;
+    const bms_boot_meta_record_t *current;
+    bms_boot_meta_record_t next;
+    uint32_t destination;
+    size_t write_length;
+    int result;
+    (void)ctx;
+
+    current = bms_boot_metadata_select(a, b);
+    destination = (current == a) ? BMS_F030_META_B : BMS_F030_META_A;
+    bms_boot_metadata_prepare_next(&next, current, state, image);
+    write_length = (sizeof(next) + 1U) & ~(size_t)1U;
+
+    FLASH_Unlock();
+    FLASH_ClearFlag(FLASH_FLAG_EOP | FLASH_FLAG_PGERR | FLASH_FLAG_WRPERR);
+    result = erase_page(destination);
+    if (result == 0) result = program_bytes(destination, (const uint8_t *)&next, write_length);
+    FLASH_Lock();
+    if (result != 0) return -1;
+    return bms_boot_metadata_is_valid((const bms_boot_meta_record_t *)(uintptr_t)destination) ? 0 : -1;
 }
 
 void bms_platform_jump_to_app(uint32_t app_start)
@@ -129,3 +180,5 @@ void bms_platform_app_vector_remap(void)
     SYSCFG_MemoryRemapConfig(SYSCFG_MemoryRemap_SRAM);
     __DSB(); __ISB();
 }
+
+void bms_platform_system_reset(void) { NVIC_SystemReset(); }

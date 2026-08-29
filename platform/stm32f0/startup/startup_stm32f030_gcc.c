@@ -47,9 +47,6 @@ void Reset_Handler(void)
     for (dst = &_sdata; dst < &_edata; ++dst, ++src) *dst = *src;
     for (dst = &_sbss; dst < &_ebss; ++dst) *dst = 0U;
     SystemInit();
-#ifdef BMS_APP_IMAGE
-    bms_platform_app_vector_remap();
-#endif
     (void)main();
     for (;;) { }
 }
