@@ -47,7 +47,7 @@ bms_status_code_t bms_service_router_bind(bms_service_router_t *router,
     if ((router == NULL) || (handler == NULL)) {
         return BMS_STATUS_INVALID_ARGUMENT;
     }
-    if ((service < BMS_SERVICE_DEVICE) || (service >= BMS_SERVICE_COUNT)) {
+    if (service >= BMS_SERVICE_COUNT) {
         return BMS_STATUS_RANGE;
     }
     slot = (size_t)service;
