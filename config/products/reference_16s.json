@@ -1,0 +1,16 @@
+{
+  "name": "reference_16s",
+  "product_id": 42,
+  "cell_count": 16,
+  "firmware": {
+    "boot_size": 12288,
+    "metadata_size": 2048
+  },
+  "features": {
+    "soc": true,
+    "soh": true,
+    "parameter_store": true,
+    "event_log": true,
+    "iap": true
+  }
+}
