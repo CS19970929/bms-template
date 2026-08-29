@@ -1,0 +1,71 @@
+name: keil-compat
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  armcc5-o2:
+    runs-on: [self-hosted, Windows, Keil]
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - stm32f030c8_mock
+          - stm32f103c8_mock
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify runner toolchain
+        shell: powershell
+        run: |
+          if (-not $env:KEIL_UV4) { throw "KEIL_UV4 environment variable is required" }
+          if (-not (Test-Path $env:KEIL_UV4)) { throw "KEIL_UV4 does not exist: $env:KEIL_UV4" }
+          python --version
+          cmake --version
+          ninja --version
+          arm-none-eabi-gcc --version
+          Write-Host "Keil: $env:KEIL_UV4"
+
+      - name: Generate Keil projects from configured source graph
+        shell: powershell
+        run: python tools/generate_keil.py --target "${{ matrix.target }}"
+
+      - name: Build ARMCC5 Debug-O2
+        shell: powershell
+        run: |
+          $ErrorActionPreference = "Stop"
+          $root = (Get-Location).Path
+          $projectDir = Join-Path $root "ide\keil\generated\${{ matrix.target }}"
+          $logDir = Join-Path $root "build\keil-logs\${{ matrix.target }}"
+          New-Item -ItemType Directory -Force -Path $logDir | Out-Null
+
+          $projects = @("bms_boot", "bms_app")
+          foreach ($name in $projects) {
+            $project = Join-Path $projectDir "$name.uvprojx"
+            $log = Join-Path $logDir "$name.log"
+            & $env:KEIL_UV4 -b $project -t "Debug-O2" -j0 -o $log
+            $code = $LASTEXITCODE
+            Get-Content $log
+            if ($code -ne 0) { throw "Keil build failed for $name, exit=$code" }
+            if (Select-String -Path $log -Pattern "0 Error\(s\)" -Quiet) {
+              Write-Host "$name: ARMCC5 build passed"
+            } else {
+              throw "Keil log does not contain zero-error result for $name"
+            }
+          }
+
+      - name: Upload Keil evidence
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: keil-armcc5-${{ matrix.target }}
+          if-no-files-found: warn
+          path: |
+            build/keil-logs/${{ matrix.target }}/*.log
+            ide/keil/generated/${{ matrix.target }}/*.uvprojx
+            ide/keil/generated/${{ matrix.target }}/Objects/**
+            ide/keil/generated/${{ matrix.target }}/Listings/**
