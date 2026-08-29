@@ -1,4 +1,5 @@
 #include "bms_platform_stm32f0.h"
+#include "bms_target_config.h"
 #include "stm32f0xx.h"
 #include "system_stm32f0xx.h"
 #include <string.h>
@@ -11,17 +12,14 @@ static int range_in_app(uint32_t address, size_t length)
 {
     uint32_t end;
     if (length == 0U) return 1;
-    if (address < BMS_F030_APP_START) return 0;
-    if (length > (size_t)(BMS_F030_APP_END - BMS_F030_APP_START)) return 0;
+    if (address < BMS_TARGET_APP_START) return 0;
+    if (length > (size_t)BMS_TARGET_APP_SIZE) return 0;
     end = address + (uint32_t)length;
     if (end < address) return 0;
-    return (end <= BMS_F030_APP_END) ? 1 : 0;
+    return (end <= BMS_TARGET_APP_END) ? 1 : 0;
 }
 
-static int erase_page(uint32_t address)
-{
-    return (FLASH_ErasePage(address) == FLASH_COMPLETE) ? 0 : -1;
-}
+static int erase_page(uint32_t address) { return (FLASH_ErasePage(address) == FLASH_COMPLETE) ? 0 : -1; }
 
 static int program_bytes(uint32_t address, const uint8_t *data, size_t length)
 {
@@ -115,8 +113,8 @@ void bms_platform_watchdog_reload(void) { IWDG_ReloadCounter(); }
 int bms_platform_flash_read(void *ctx, uint32_t address, uint8_t *dst, size_t length)
 {
     (void)ctx;
-    if ((dst == NULL) || (address < BMS_F030_FLASH_START) || (address >= BMS_F030_FLASH_END)) return -1;
-    if (length > (size_t)(BMS_F030_FLASH_END - address)) return -1;
+    if ((dst == NULL) || (address < BMS_F030_FLASH_START) || (address >= BMS_TARGET_FLASH_END)) return -1;
+    if (length > (size_t)(BMS_TARGET_FLASH_END - address)) return -1;
     (void)memcpy(dst, (const void *)(uintptr_t)address, length);
     return 0;
 }
@@ -127,7 +125,7 @@ int bms_platform_flash_erase_app(void *ctx)
     (void)ctx;
     FLASH_Unlock();
     FLASH_ClearFlag(FLASH_FLAG_EOP | FLASH_FLAG_PGERR | FLASH_FLAG_WRPERR);
-    for (page = BMS_F030_APP_START; page < BMS_F030_APP_END; page += BMS_F030_FLASH_PAGE_SIZE) {
+    for (page = BMS_TARGET_APP_START; page < BMS_TARGET_APP_END; page += BMS_F030_FLASH_PAGE_SIZE) {
         if (erase_page(page) != 0) { FLASH_Lock(); return -1; }
         bms_platform_watchdog_reload();
     }
@@ -140,28 +138,23 @@ int bms_platform_flash_write(void *ctx, uint32_t address, const uint8_t *data, s
     int result;
     (void)ctx;
     if ((data == NULL) || (range_in_app(address, length) == 0)) return -1;
-    FLASH_Unlock();
-    result = program_bytes(address, data, length);
-    FLASH_Lock();
+    FLASH_Unlock(); result = program_bytes(address, data, length); FLASH_Lock();
     return result;
 }
 
 int bms_platform_metadata_store(void *ctx, bms_boot_meta_state_t state, const bms_image_manifest_t *image)
 {
-    const bms_boot_meta_record_t *const a = (const bms_boot_meta_record_t *)(uintptr_t)BMS_F030_META_A;
-    const bms_boot_meta_record_t *const b = (const bms_boot_meta_record_t *)(uintptr_t)BMS_F030_META_B;
+    const bms_boot_meta_record_t *const a = (const bms_boot_meta_record_t *)(uintptr_t)BMS_TARGET_METADATA_A;
+    const bms_boot_meta_record_t *const b = (const bms_boot_meta_record_t *)(uintptr_t)BMS_TARGET_METADATA_B;
     const bms_boot_meta_record_t *current;
     bms_boot_meta_record_t next;
     uint32_t destination;
     int result;
     (void)ctx;
-
     current = bms_boot_metadata_select(a, b);
-    destination = (current == a) ? BMS_F030_META_B : BMS_F030_META_A;
+    destination = (current == a) ? BMS_TARGET_METADATA_B : BMS_TARGET_METADATA_A;
     bms_boot_metadata_prepare_next(&next, current, state, image);
-
-    FLASH_Unlock();
-    FLASH_ClearFlag(FLASH_FLAG_EOP | FLASH_FLAG_PGERR | FLASH_FLAG_WRPERR);
+    FLASH_Unlock(); FLASH_ClearFlag(FLASH_FLAG_EOP | FLASH_FLAG_PGERR | FLASH_FLAG_WRPERR);
     result = erase_page(destination);
     if (result == 0) result = program_bytes(destination, (const uint8_t *)&next, sizeof(next));
     FLASH_Lock();
@@ -177,18 +170,16 @@ void bms_platform_jump_to_app(uint32_t app_start)
     entry_fn_t entry = (entry_fn_t)(uintptr_t)reset;
     __disable_irq();
     SysTick->CTRL = 0U; SysTick->LOAD = 0U; SysTick->VAL = 0U;
-    NVIC->ICER[0] = 0xFFFFFFFFUL;
-    NVIC->ICPR[0] = 0xFFFFFFFFUL;
-    __set_MSP(msp);
-    entry();
+    NVIC->ICER[0] = 0xFFFFFFFFUL; NVIC->ICPR[0] = 0xFFFFFFFFUL;
+    __set_MSP(msp); entry();
     for (;;) { }
 }
 
 void bms_platform_app_vector_remap(void)
 {
     uint32_t i;
-    volatile uint32_t *const sram_vectors = (volatile uint32_t *)(uintptr_t)BMS_F030_RAM_START;
-    const uint32_t *const flash_vectors = (const uint32_t *)(uintptr_t)BMS_F030_APP_START;
+    volatile uint32_t *const sram_vectors = (volatile uint32_t *)(uintptr_t)BMS_TARGET_RAM_START;
+    const uint32_t *const flash_vectors = (const uint32_t *)(uintptr_t)BMS_TARGET_APP_START;
     for (i = 0U; i < BMS_F030_VECTOR_WORDS; ++i) sram_vectors[i] = flash_vectors[i];
     RCC_APB2PeriphClockCmd(RCC_APB2Periph_SYSCFG, ENABLE);
     SYSCFG_MemoryRemapConfig(SYSCFG_MemoryRemap_SRAM);

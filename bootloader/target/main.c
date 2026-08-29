@@ -5,18 +5,18 @@
 #include "bms_frame.h"
 #include "bms_iap_service.h"
 #include "bms_platform_stm32f0.h"
+#include "bms_target_config.h"
 #include <stddef.h>
 #include <stdint.h>
 
-#define PRODUCT_ID 42U
 #define RX_BUFFER_SIZE (BMS_FRAME_HEADER_SIZE + BMS_FRAME_MAX_PAYLOAD + BMS_FRAME_CRC_SIZE)
 
 static bms_image_constraints_t constraints(void)
 {
     bms_image_constraints_t c;
-    c.app_start = BMS_F030_APP_START; c.app_end_exclusive = BMS_F030_APP_END;
-    c.ram_start = BMS_F030_RAM_START; c.ram_end_exclusive = BMS_F030_RAM_END;
-    c.mcu_id = BMS_MCU_STM32F030C8; c.product_id = PRODUCT_ID;
+    c.app_start = BMS_TARGET_APP_START; c.app_end_exclusive = BMS_TARGET_APP_END;
+    c.ram_start = BMS_TARGET_RAM_START; c.ram_end_exclusive = BMS_TARGET_RAM_END;
+    c.mcu_id = (uint16_t)BMS_TARGET_MCU_ID; c.product_id = BMS_TARGET_PRODUCT_ID;
     return c;
 }
 
@@ -44,21 +44,18 @@ static void process_frame(bms_iap_service_t *service, const uint8_t *frame, size
         bms_platform_system_reset();
     }
     if (bms_iap_service_handle(service, view.command, view.payload, view.payload_length,
-                               response, sizeof(response), &response_length) == 0) {
-        send_response(&view, response, response_length);
-    }
+                               response, sizeof(response), &response_length) == 0) send_response(&view, response, response_length);
 }
 
 int main(void)
 {
-    const bms_boot_meta_record_t *a = (const bms_boot_meta_record_t *)(uintptr_t)BMS_F030_META_A;
-    const bms_boot_meta_record_t *b = (const bms_boot_meta_record_t *)(uintptr_t)BMS_F030_META_B;
+    const bms_boot_meta_record_t *a = (const bms_boot_meta_record_t *)(uintptr_t)BMS_TARGET_METADATA_A;
+    const bms_boot_meta_record_t *b = (const bms_boot_meta_record_t *)(uintptr_t)BMS_TARGET_METADATA_B;
     const bms_boot_meta_record_t *meta;
     bms_boot_policy_input_t policy = {0};
     bms_image_constraints_t c = constraints();
     bms_iap_session_t session;
-    bms_iap_storage_t storage = {bms_platform_flash_erase_app, bms_platform_flash_write,
-                                 bms_platform_flash_read, bms_platform_metadata_store, NULL};
+    bms_iap_storage_t storage = {bms_platform_flash_erase_app, bms_platform_flash_write, bms_platform_flash_read, bms_platform_metadata_store, NULL};
     bms_iap_service_t service = {&session, &storage};
     uint8_t rx[RX_BUFFER_SIZE];
     size_t rx_length = 0U;
@@ -74,7 +71,7 @@ int main(void)
     }
     policy.app_confirmed_healthy = (meta != NULL && meta->state == (uint32_t)BMS_BOOT_META_CONFIRMED) ? 1U : 0U;
     policy.boot_failure_limit = 3U;
-    if (bms_boot_policy_decide(&policy) == BMS_BOOT_START_APP) bms_platform_jump_to_app(BMS_F030_APP_START);
+    if (bms_boot_policy_decide(&policy) == BMS_BOOT_START_APP) bms_platform_jump_to_app(BMS_TARGET_APP_START);
 
     (void)bms_platform_uart_write(recovery_msg, sizeof(recovery_msg) - 1U);
     for (;;) {
@@ -86,12 +83,10 @@ int main(void)
             rx[rx_length++] = byte;
             continue;
         }
-        if (rx_length == 1U) {
-            if (byte != (uint8_t)((BMS_FRAME_MAGIC >> 8U) & 0xFFU)) {
-                rx_length = (byte == (uint8_t)(BMS_FRAME_MAGIC & 0xFFU)) ? 1U : 0U;
-                if (rx_length == 1U) rx[0] = byte;
-                continue;
-            }
+        if (rx_length == 1U && byte != (uint8_t)((BMS_FRAME_MAGIC >> 8U) & 0xFFU)) {
+            rx_length = (byte == (uint8_t)(BMS_FRAME_MAGIC & 0xFFU)) ? 1U : 0U;
+            if (rx_length == 1U) rx[0] = byte;
+            continue;
         }
         if (rx_length >= sizeof(rx)) { rx_length = 0U; expected_length = 0U; continue; }
         rx[rx_length++] = byte;
