@@ -88,6 +88,7 @@ target_include_directories(bms_app_core PUBLIC
     app/core/include
     common/include
     generated/parameters
+    generated/protections
 )
 target_link_libraries(bms_app_core
     PUBLIC bms_base
@@ -140,6 +141,13 @@ if(BMS_BUILD_HOST_TESTS)
     target_include_directories(bms_parameter_schema_test PRIVATE generated/parameters)
     target_link_libraries(bms_parameter_schema_test PRIVATE bms_warnings bms_sanitizers)
     add_test(NAME bms_parameter_schema_test COMMAND bms_parameter_schema_test)
+
+    add_executable(bms_protection_schema_test
+        tests/host/test_protection_schema.c
+    )
+    target_include_directories(bms_protection_schema_test PRIVATE generated/protections)
+    target_link_libraries(bms_protection_schema_test PRIVATE bms_warnings bms_sanitizers)
+    add_test(NAME bms_protection_schema_test COMMAND bms_protection_schema_test)
 endif()
 
 if(CMAKE_CROSSCOMPILING)

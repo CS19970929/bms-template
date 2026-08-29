@@ -10,14 +10,14 @@ Path -> required owner documentation:
 
 - `bootloader/**`, Boot-facing `platform/**` -> `BOOTLOADER.md`; layout/vector changes also `FLASH_LAYOUT.md`.
 - `protocol/**` -> `PROTOCOL.md`; PC protocol mapping also `UPPER_COMPUTER.md`/`BLE.md` as applicable.
-- `app/core/*protection*`, `*mos*` -> `PROTECTION.md`.
+- `app/core/*protection*`, `*mos*`, `schema/protections.json`, protection generator/generated outputs -> `PROTECTION.md`.
 - state-machine files -> `STATE_MACHINE.md`.
 - parameter runtime files, `schema/parameters.json`, parameter generator/generated outputs -> `PARAMETERS.md`.
 - NVM/persistence files -> `NVM.md`.
 - SOC/SOH files -> `SOC.md`.
 - `config/**`, target generator/linker generation -> `CONFIGURATION.md` and `FLASH_LAYOUT.md` when memory geometry changes.
 - BLE transport/legacy adapter -> `BLE.md`.
-- PC architecture/upgrade -> `UPPER_COMPUTER.md`.
+- PC architecture/upgrade/generated ABI consumption -> `UPPER_COMPUTER.md`.
 - workflows/quality/release tooling -> `CLOUD_CI.md` or `RELEASE.md`.
 - AI/governance rules -> this document/`AI_DEVELOPMENT.md`/`AGENTS.md`.
 
@@ -27,11 +27,11 @@ Purpose, boundaries/ownership, stable data/state model, invariants, failure beha
 
 ## Machine checks
 
-`tools/check_docs.py` verifies the required document set, repository links and PR change coupling. CI fetches PR history sufficiently to compare against the base SHA. Schema generators have their own deterministic stale-output checks. These checks may not be bypassed by warning suppression or test deletion.
+`tools/check_docs.py` verifies the required document set, repository links and PR change coupling. CI fetches PR history sufficiently to compare against the base SHA. Parameter and protection schema generators have independent deterministic stale-output checks, and dedicated Host tests compile the generated C headers. These checks may not be bypassed by warning suppression or test deletion.
 
 ## Generated documentation/code
 
-Edit the owning schema, then run the supported generator. Do not independently edit generated Markdown/C#/C tables or IDs. CI rejects stale generated outputs. A generator or schema change is itself a behavior/ABI change and is coupled to the corresponding owner document.
+Edit the owning schema, then run `python tools/bms.py schema`. Do not independently edit generated Markdown/C#/C tables or IDs. CI rejects stale generated outputs. A generator or schema change is itself a behavior/ABI change and is coupled to the corresponding owner document.
 
 ## Review rule
 

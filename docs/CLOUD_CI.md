@@ -4,11 +4,11 @@ GitHub Actions is the primary software admission layer.
 
 ## Hosted gates
 
-`quality-gate`: documentation structure/change coupling, deterministic schema-generated-output check, target configuration generation, source/build policy scan, Host O0 and O2 builds/tests, O0/O2 output equivalence, ASan/UBSan and Cppcheck.
+`quality-gate`: documentation structure/change coupling, deterministic parameter/protection schema-generated-output checks, target configuration generation, source/build policy scan, Host O0 and O2 builds/tests, O0/O2 output equivalence, ASan/UBSan and Cppcheck. Generated C schema headers are also compiled by dedicated Host tests, not merely compared as text.
 
 `firmware-build`: matrix builds F030C8/F103C8 APP+Boot with arm-none-eabi-gcc O2, validates generated image budgets, emits ELF/MAP/HEX/BIN/target summary and generates/parses Keil Boot/APP project XML from the same source graph.
 
-`pc-build`: Windows .NET 8 restore/Release build with warnings as errors plus protocol smoke. Generated C# ABI definitions are compiled as part of `Bms.Protocol`.
+`pc-build`: Windows .NET 8 restore/Release build with warnings as errors plus protocol smoke. Generated C# parameter and protection ABI definitions are compiled as part of `Bms.Protocol`.
 
 `cloud-verify`: manually aggregates hosted software gates.
 

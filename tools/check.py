@@ -157,6 +157,7 @@ def main() -> int:
 
     run([sys.executable, "tools/check_docs.py"])
     run([sys.executable, "tools/generate_parameters.py", "--check"])
+    run([sys.executable, "tools/generate_protections.py", "--check"])
     validate_targets()
     scan_source_policy()
 

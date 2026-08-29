@@ -132,6 +132,7 @@ def main() -> int:
         run([sys.executable, "tools/check.py"])
     elif args.command == "schema":
         run([sys.executable, "tools/generate_parameters.py", "--write"])
+        run([sys.executable, "tools/generate_protections.py", "--write"])
     elif args.command == "build":
         build_firmware(args.target)
     elif args.command == "keil":

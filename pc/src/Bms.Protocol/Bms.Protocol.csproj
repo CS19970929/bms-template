@@ -7,5 +7,6 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="../../../generated/parameters/ParameterIds.g.cs" Link="Generated/ParameterIds.g.cs" />
+    <Compile Include="../../../generated/protections/ProtectionIds.g.cs" Link="Generated/ProtectionIds.g.cs" />
   </ItemGroup>
 </Project>
