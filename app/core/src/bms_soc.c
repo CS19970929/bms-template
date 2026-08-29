@@ -84,8 +84,6 @@ bms_soc_result_t bms_soc_step(bms_soc_t *soc, const bms_soc_config_t *config, in
                               uint32_t elapsed_ms)
 {
     uint32_t magnitude;
-    int64_t delta_mams;
-    int64_t delta_mas;
     if ((soc == NULL) || (soc->valid == 0U)) {
         return BMS_SOC_ERR_ARGUMENT;
     }
@@ -108,8 +106,9 @@ bms_soc_result_t bms_soc_step(bms_soc_t *soc, const bms_soc_config_t *config, in
     }
 
     if (magnitude >= config->current_floor_ma) {
-        delta_mams = ((int64_t)current_ma * (int64_t)elapsed_ms) + soc->integration_remainder_mams;
-        delta_mas = delta_mams / BMS_MILLISECONDS_PER_SECOND;
+        const int64_t delta_mams = ((int64_t)current_ma * (int64_t)elapsed_ms) +
+                                   soc->integration_remainder_mams;
+        const int64_t delta_mas = delta_mams / BMS_MILLISECONDS_PER_SECOND;
         soc->integration_remainder_mams = delta_mams % BMS_MILLISECONDS_PER_SECOND;
         soc->charge_mas += delta_mas;
         if (soc->charge_mas < 0LL) {
