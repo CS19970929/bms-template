@@ -1,19 +1,41 @@
 name: firmware-build
+
 on:
   pull_request:
-    paths: ["app/**","bootloader/**","common/**","protocol/**","platform/**","drivers/**","config/**","cmake/**","CMakeLists.txt","CMakePresets.json","tools/bootstrap_vendor.py","tools/generate_target.py",".github/workflows/firmware-build.yml"]
+    paths:
+      - "app/**"
+      - "bootloader/**"
+      - "common/**"
+      - "protocol/**"
+      - "platform/**"
+      - "drivers/**"
+      - "config/**"
+      - "cmake/**"
+      - "CMakeLists.txt"
+      - "CMakePresets.json"
+      - "tools/bootstrap_vendor.py"
+      - "tools/generate_target.py"
+      - ".github/workflows/firmware-build.yml"
   push:
     branches: [main]
   workflow_dispatch:
-permissions: {contents: read}
+  workflow_call:
+
+permissions:
+  contents: read
+
 jobs:
   gcc-o2:
     strategy:
       fail-fast: false
       matrix:
         include:
-          - {preset: f030, family: f0, target: stm32f030c8}
-          - {preset: f103, family: f1, target: stm32f103c8}
+          - preset: f030
+            family: f0
+            target: stm32f030c8
+          - preset: f103
+            family: f1
+            target: stm32f103c8
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -23,7 +45,7 @@ jobs:
       - name: Bootstrap pinned ST vendor subset
         run: python3 tools/bootstrap_vendor.py --family ${{ matrix.family }}
       - name: Configure
-        run: cmake --preset ${{ matrix.preset }}
+        run: cmake --fresh --preset ${{ matrix.preset }}
       - name: Build O2 APP and Bootloader
         run: cmake --build --preset ${{ matrix.preset }}
       - name: Enforce 64 KiB image budgets
@@ -34,9 +56,11 @@ jobs:
           echo "boot=$boot bytes app=$app bytes"
           test "$boot" -le 12288
           test "$app" -le 51200
-      - uses: actions/upload-artifact@v4
+      - name: Upload firmware artifacts
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.target }}-gcc-o2
+          if-no-files-found: error
           path: |
             build/${{ matrix.preset }}/*.elf
             build/${{ matrix.preset }}/*.map
