@@ -15,6 +15,7 @@ on:
       - "CMakePresets.json"
       - "tools/bootstrap_vendor.py"
       - "tools/generate_target.py"
+      - "tools/check_firmware_image.py"
       - ".github/workflows/firmware-build.yml"
   push:
     branches: [main]
@@ -33,9 +34,11 @@ jobs:
           - preset: f030
             family: f0
             target: stm32f030c8
+            target_config: stm32f030c8_mock
           - preset: f103
             family: f1
             target: stm32f103c8
+            target_config: stm32f103c8_mock
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -48,14 +51,11 @@ jobs:
         run: cmake --fresh --preset ${{ matrix.preset }}
       - name: Build O2 APP and Bootloader
         run: cmake --build --preset ${{ matrix.preset }}
-      - name: Enforce 64 KiB image budgets
-        shell: bash
-        run: |
-          boot=$(stat -c%s build/${{ matrix.preset }}/bms_bootloader.bin)
-          app=$(stat -c%s build/${{ matrix.preset }}/bms_app.bin)
-          echo "boot=$boot bytes app=$app bytes"
-          test "$boot" -le 12288
-          test "$app" -le 51200
+      - name: Enforce generated image budgets
+        run: >-
+          python3 tools/check_firmware_image.py
+          --build-dir build/${{ matrix.preset }}
+          --target ${{ matrix.target_config }}
       - name: Upload firmware artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -66,3 +66,4 @@ jobs:
             build/${{ matrix.preset }}/*.map
             build/${{ matrix.preset }}/*.hex
             build/${{ matrix.preset }}/*.bin
+            build/${{ matrix.preset }}/generated/${{ matrix.target_config }}/target-summary.json
