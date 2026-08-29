@@ -1,92 +1,62 @@
 cmake_minimum_required(VERSION 3.24)
 project(bms_template LANGUAGES C)
-
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
-
 option(BMS_BUILD_HOST_TESTS "Build host-side production-core tests" ON)
 option(BMS_ENABLE_SANITIZERS "Enable ASan/UBSan for host builds" OFF)
 set(BMS_TARGET "host_mock" CACHE STRING "Target profile")
-
 add_library(bms_warnings INTERFACE)
 if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
-    target_compile_options(bms_warnings INTERFACE
-        -Wall -Wextra -Werror -Wconversion -Wsign-conversion -Wshadow -Wundef
-        -Wformat=2 -Wswitch-enum -Wcast-align -Wcast-qual -Wstrict-prototypes
-        -Wmissing-prototypes -Wdouble-promotion
-    )
+    target_compile_options(bms_warnings INTERFACE -Wall -Wextra -Werror -Wconversion -Wsign-conversion -Wshadow -Wundef -Wformat=2 -Wswitch-enum -Wcast-align -Wcast-qual -Wstrict-prototypes -Wmissing-prototypes -Wdouble-promotion)
 endif()
-
 add_library(bms_sanitizers INTERFACE)
 if(BMS_ENABLE_SANITIZERS AND CMAKE_C_COMPILER_ID MATCHES "GNU|Clang" AND NOT CMAKE_CROSSCOMPILING)
     target_compile_options(bms_sanitizers INTERFACE -fsanitize=address,undefined -fno-omit-frame-pointer -fno-sanitize-recover=all)
     target_link_options(bms_sanitizers INTERFACE -fsanitize=address,undefined -fno-omit-frame-pointer -fno-sanitize-recover=all)
 endif()
-
 add_library(bms_base STATIC common/src/bms_crc32.c protocol/src/bms_frame.c protocol/src/bms_service.c)
 target_include_directories(bms_base PUBLIC common/include protocol/include)
 target_link_libraries(bms_base PRIVATE bms_warnings bms_sanitizers)
-
-add_library(bms_boot_core STATIC
-    bootloader/core/src/bms_boot_image.c
-    bootloader/core/src/bms_boot_metadata.c
-    bootloader/core/src/bms_boot_policy.c
-    bootloader/core/src/bms_iap_session.c
-    bootloader/core/src/bms_iap_service.c
-)
+add_library(bms_boot_core STATIC bootloader/core/src/bms_boot_image.c bootloader/core/src/bms_boot_metadata.c bootloader/core/src/bms_boot_policy.c bootloader/core/src/bms_iap_session.c bootloader/core/src/bms_iap_service.c)
 target_include_directories(bms_boot_core PUBLIC bootloader/core/include protocol/include common/include)
 target_link_libraries(bms_boot_core PUBLIC bms_base PRIVATE bms_warnings bms_sanitizers)
-
 add_library(bms_app_core STATIC
-    app/core/src/bms_protection.c
-    app/core/src/bms_protection_manager.c
-    app/core/src/bms_mos_policy.c
-    app/core/src/bms_watchdog_supervisor.c
-    app/core/src/bms_scheduler.c
-    app/core/src/bms_state_machine.c
-    app/core/src/bms_parameter.c
-    app/core/src/bms_parameter_persistence.c
-    app/core/src/bms_parameter_store.c
-    app/core/src/bms_nvm_record.c
-    app/core/src/bms_nvm_store.c
-    app/core/src/bms_event_log.c
-    app/core/src/bms_soc.c
-)
-target_include_directories(bms_app_core PUBLIC app/core/include common/include generated/parameters generated/protections)
+    app/core/src/bms_protection.c app/core/src/bms_protection_manager.c app/core/src/bms_mos_policy.c
+    app/core/src/bms_watchdog_supervisor.c app/core/src/bms_scheduler.c app/core/src/bms_state_machine.c
+    app/core/src/bms_parameter.c app/core/src/bms_parameter_persistence.c app/core/src/bms_parameter_store.c
+    app/core/src/bms_nvm_record.c app/core/src/bms_nvm_store.c app/core/src/bms_event_log.c app/core/src/bms_soc.c)
+target_include_directories(bms_app_core PUBLIC app/core/include common/include generated/parameters generated/protections generated/events)
 target_link_libraries(bms_app_core PUBLIC bms_base PRIVATE bms_warnings bms_sanitizers)
-
 add_library(bms_afe_mock STATIC drivers/afe/src/bms_afe_mock.c)
 target_include_directories(bms_afe_mock PUBLIC drivers/afe/include)
 target_link_libraries(bms_afe_mock PRIVATE bms_warnings bms_sanitizers)
-
 if(BMS_BUILD_HOST_TESTS)
     enable_testing()
     add_executable(bms_host_tests tests/host/test_main.c tests/host/test_app_core.c)
     target_link_libraries(bms_host_tests PRIVATE bms_base bms_boot_core bms_app_core bms_afe_mock bms_warnings bms_sanitizers)
     add_test(NAME bms_host_tests COMMAND bms_host_tests)
-
     foreach(test_name IN ITEMS protection_manager_atomic nvm_power_loss parameter_persistence parameter_store event_log)
         add_executable(bms_${test_name}_test tests/host/test_${test_name}.c)
         target_link_libraries(bms_${test_name}_test PRIVATE bms_app_core bms_warnings bms_sanitizers)
         add_test(NAME bms_${test_name}_test COMMAND bms_${test_name}_test)
     endforeach()
-
     add_executable(bms_parameter_schema_test tests/host/test_parameter_schema.c)
     target_include_directories(bms_parameter_schema_test PRIVATE generated/parameters)
     target_link_libraries(bms_parameter_schema_test PRIVATE bms_warnings bms_sanitizers)
     add_test(NAME bms_parameter_schema_test COMMAND bms_parameter_schema_test)
-
     add_executable(bms_protection_schema_test tests/host/test_protection_schema.c)
     target_include_directories(bms_protection_schema_test PRIVATE generated/protections)
     target_link_libraries(bms_protection_schema_test PRIVATE bms_warnings bms_sanitizers)
     add_test(NAME bms_protection_schema_test COMMAND bms_protection_schema_test)
-
+    add_executable(bms_event_schema_test tests/host/test_event_schema.c)
+    target_include_directories(bms_event_schema_test PRIVATE generated/events)
+    target_link_libraries(bms_event_schema_test PRIVATE bms_warnings bms_sanitizers)
+    add_test(NAME bms_event_schema_test COMMAND bms_event_schema_test)
     add_executable(bms_protocol_service_test tests/host/test_protocol_service.c)
     target_link_libraries(bms_protocol_service_test PRIVATE bms_base bms_warnings bms_sanitizers)
     add_test(NAME bms_protocol_service_test COMMAND bms_protocol_service_test)
 endif()
-
 if(CMAKE_CROSSCOMPILING)
     include(cmake/firmware.cmake)
 endif()
