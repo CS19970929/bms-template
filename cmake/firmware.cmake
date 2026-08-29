@@ -116,6 +116,7 @@ if(BMS_GENERATED_MCU_FAMILY STREQUAL "stm32f0")
         "${V}/StdPeriph/src/stm32f0xx_syscfg.c"
         "${V}/StdPeriph/src/stm32f0xx_usart.c"
     )
+    target_include_directories(bms_vendor_mcu PRIVATE ${BMS_OWNED_MCU_INCLUDES})
     target_include_directories(bms_vendor_mcu SYSTEM PUBLIC ${BMS_VENDOR_INCLUDES})
     target_compile_definitions(bms_vendor_mcu PUBLIC ${BMS_GENERATED_MCU_DEFINE} USE_STDPERIPH_DRIVER)
     target_compile_options(bms_vendor_mcu PRIVATE
@@ -165,6 +166,7 @@ elseif(BMS_GENERATED_MCU_FAMILY STREQUAL "stm32f1")
         "${V}/StdPeriph/src/stm32f10x_rcc.c"
         "${V}/StdPeriph/src/stm32f10x_usart.c"
     )
+    target_include_directories(bms_vendor_mcu PRIVATE ${BMS_OWNED_MCU_INCLUDES})
     target_include_directories(bms_vendor_mcu SYSTEM PUBLIC ${BMS_VENDOR_INCLUDES})
     target_compile_definitions(bms_vendor_mcu PUBLIC ${BMS_GENERATED_MCU_DEFINE} USE_STDPERIPH_DRIVER)
     target_compile_options(bms_vendor_mcu PRIVATE
