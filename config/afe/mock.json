@@ -1,0 +1,15 @@
+{
+  "name": "mock",
+  "driver": "mock",
+  "transport": "none",
+  "max_cells": 32,
+  "capabilities": {
+    "cell_voltage": true,
+    "pack_voltage": true,
+    "current": true,
+    "temperature": true,
+    "fet_control": true,
+    "hardware_protection": false,
+    "balancing": false
+  }
+}
