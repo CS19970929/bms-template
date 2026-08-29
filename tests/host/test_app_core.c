@@ -1,6 +1,7 @@
 #include "bms_mos_policy.h"
 #include "bms_nvm_record.h"
 #include "bms_parameter.h"
+#include "bms_protection_manager.h"
 #include "bms_scheduler.h"
 #include "bms_soc.h"
 #include "bms_state_machine.h"
@@ -142,6 +143,69 @@ static int test_soc(void)
     return 0;
 }
 
+static int test_protection_manager(void)
+{
+    bms_protection_rule_t rules[2] = {0};
+    bms_protection_runtime_t runtime[2];
+    int32_t values[2] = {0};
+    bms_protection_manager_output_t output;
+
+    rules[0].id = 1U;
+    rules[0].detector.trip_threshold = 4200;
+    rules[0].detector.release_threshold = 4100;
+    rules[0].detector.trip_delay_ms = 100U;
+    rules[0].detector.release_delay_ms = 100U;
+    rules[0].detector.mode = BMS_PROTECT_MODE_HIGH;
+    rules[0].detector.enabled = 1U;
+    rules[0].charge_block_mask = 0x01U;
+
+    rules[1].id = 2U;
+    rules[1].detector.trip_threshold = 100;
+    rules[1].detector.release_threshold = 50;
+    rules[1].detector.trip_delay_ms = 0U;
+    rules[1].detector.release_delay_ms = 0U;
+    rules[1].detector.mode = BMS_PROTECT_MODE_HIGH;
+    rules[1].detector.enabled = 1U;
+    rules[1].charge_block_mask = 0x02U;
+    rules[1].discharge_block_mask = 0x02U;
+    rules[1].latch_enabled = 1U;
+
+    T(bms_protection_manager_validate_rules(rules, 2U) == BMS_PROTECTION_MANAGER_OK);
+    bms_protection_manager_init(runtime, 2U);
+
+    values[0] = 4300;
+    values[1] = 0;
+    T(bms_protection_manager_step(rules, runtime, values, 2U, 50U, &output) == BMS_PROTECTION_MANAGER_OK);
+    T(output.any_active == 0U);
+    T(bms_protection_manager_step(rules, runtime, values, 2U, 50U, &output) == BMS_PROTECTION_MANAGER_OK);
+    T(output.charge_block_mask == 0x01U);
+    T(output.discharge_block_mask == 0U);
+    T((output.any_active == 1U) && (output.active_count == 1U) && (output.first_active_id == 1U));
+
+    values[0] = 4000;
+    T(bms_protection_manager_step(rules, runtime, values, 2U, 100U, &output) == BMS_PROTECTION_MANAGER_OK);
+    T(output.any_active == 0U);
+
+    values[1] = 200;
+    T(bms_protection_manager_step(rules, runtime, values, 2U, 0U, &output) == BMS_PROTECTION_MANAGER_OK);
+    T((output.charge_block_mask == 0x02U) && (output.discharge_block_mask == 0x02U));
+    T(bms_protection_manager_clear_latch(rules, runtime, 2U, 2U) == BMS_PROTECTION_MANAGER_ERR_CONDITION_ACTIVE);
+
+    values[1] = 0;
+    T(bms_protection_manager_step(rules, runtime, values, 2U, 0U, &output) == BMS_PROTECTION_MANAGER_OK);
+    T((output.charge_block_mask == 0x02U) && (runtime[1].detector.state == BMS_PROTECT_NORMAL));
+    T(bms_protection_manager_clear_latch(rules, runtime, 2U, 2U) == BMS_PROTECTION_MANAGER_OK);
+    T(bms_protection_manager_step(rules, runtime, values, 2U, 0U, &output) == BMS_PROTECTION_MANAGER_OK);
+    T(output.any_active == 0U);
+
+    rules[1].id = 1U;
+    T(bms_protection_manager_validate_rules(rules, 2U) == BMS_PROTECTION_MANAGER_ERR_DUPLICATE_ID);
+    rules[1].id = 2U;
+    rules[0].detector.release_threshold = 4300;
+    T(bms_protection_manager_validate_rules(rules, 2U) == BMS_PROTECTION_MANAGER_ERR_CONFIG);
+    return 0;
+}
+
 int bms_test_app_core(void)
 {
     bms_watchdog_supervisor_t w;
@@ -188,5 +252,6 @@ int bms_test_app_core(void)
     T(test_parameters() == 0);
     T(test_nvm_records() == 0);
     T(test_soc() == 0);
+    T(test_protection_manager() == 0);
     return 0;
 }

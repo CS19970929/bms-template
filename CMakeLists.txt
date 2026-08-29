@@ -74,6 +74,7 @@ target_link_libraries(bms_boot_core
 
 add_library(bms_app_core STATIC
     app/core/src/bms_protection.c
+    app/core/src/bms_protection_manager.c
     app/core/src/bms_mos_policy.c
     app/core/src/bms_watchdog_supervisor.c
     app/core/src/bms_scheduler.c
