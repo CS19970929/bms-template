@@ -1,7 +1,16 @@
 #include "bms_afe_mock.h"
 #include <stddef.h>
 
-static int mock_init(bms_afe_t *afe) { return (afe != NULL) ? 0 : -1; }
+static int mock_init(bms_afe_t *afe)
+{
+    bms_afe_mock_context_t *context;
+    if ((afe == NULL) || (afe->context == NULL)) return -1;
+    context = (bms_afe_mock_context_t *)afe->context;
+    context->charge_fet = 0U;
+    context->discharge_fet = 0U;
+    context->balance_mask = 0U;
+    return 0;
+}
 static int mock_sample(bms_afe_t *afe, bms_afe_sample_t *sample)
 {
     if ((afe == NULL) || (sample == NULL) || (afe->context == NULL)) return -1;

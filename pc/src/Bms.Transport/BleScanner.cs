@@ -7,15 +7,20 @@ public static class BleScanner
     public static async Task<IReadOnlyList<BleDeviceInfo>> ScanAsync(TimeSpan duration, CancellationToken cancellationToken = default)
     {
         var found = new Dictionary<ulong, BleDeviceInfo>();
-        using var watcher = new BluetoothLEAdvertisementWatcher { ScanningMode = BluetoothLEScanningMode.Active };
-        watcher.Received += (_, args) =>
+        var watcher = new BluetoothLEAdvertisementWatcher { ScanningMode = BluetoothLEScanningMode.Active };
+        TypedEventHandler<BluetoothLEAdvertisementWatcher, BluetoothLEAdvertisementReceivedEventArgs> handler = (_, args) =>
         {
             string name = args.Advertisement.LocalName ?? string.Empty;
             lock (found) found[args.BluetoothAddress] = new BleDeviceInfo(args.BluetoothAddress, name, args.RawSignalStrengthInDBm);
         };
+        watcher.Received += handler;
         watcher.Start();
         try { await Task.Delay(duration, cancellationToken).ConfigureAwait(false); }
-        finally { watcher.Stop(); }
+        finally
+        {
+            watcher.Stop();
+            watcher.Received -= handler;
+        }
         lock (found) return found.Values.OrderByDescending(x => x.Rssi).ToArray();
     }
 }
