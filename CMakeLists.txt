@@ -50,10 +50,7 @@ add_library(bms_base STATIC
     protocol/src/bms_frame.c
     protocol/src/bms_service.c
 )
-target_include_directories(bms_base PUBLIC
-    common/include
-    protocol/include
-)
+target_include_directories(bms_base PUBLIC common/include protocol/include)
 target_link_libraries(bms_base PRIVATE bms_warnings bms_sanitizers)
 
 add_library(bms_boot_core STATIC
@@ -63,15 +60,8 @@ add_library(bms_boot_core STATIC
     bootloader/core/src/bms_iap_session.c
     bootloader/core/src/bms_iap_service.c
 )
-target_include_directories(bms_boot_core PUBLIC
-    bootloader/core/include
-    protocol/include
-    common/include
-)
-target_link_libraries(bms_boot_core
-    PUBLIC bms_base
-    PRIVATE bms_warnings bms_sanitizers
-)
+target_include_directories(bms_boot_core PUBLIC bootloader/core/include protocol/include common/include)
+target_link_libraries(bms_boot_core PUBLIC bms_base PRIVATE bms_warnings bms_sanitizers)
 
 add_library(bms_app_core STATIC
     app/core/src/bms_protection.c
@@ -83,18 +73,11 @@ add_library(bms_app_core STATIC
     app/core/src/bms_parameter.c
     app/core/src/bms_nvm_record.c
     app/core/src/bms_nvm_store.c
+    app/core/src/bms_event_log.c
     app/core/src/bms_soc.c
 )
-target_include_directories(bms_app_core PUBLIC
-    app/core/include
-    common/include
-    generated/parameters
-    generated/protections
-)
-target_link_libraries(bms_app_core
-    PUBLIC bms_base
-    PRIVATE bms_warnings bms_sanitizers
-)
+target_include_directories(bms_app_core PUBLIC app/core/include common/include generated/parameters generated/protections)
+target_link_libraries(bms_app_core PUBLIC bms_base PRIVATE bms_warnings bms_sanitizers)
 
 add_library(bms_afe_mock STATIC drivers/afe/src/bms_afe_mock.c)
 target_include_directories(bms_afe_mock PUBLIC drivers/afe/include)
@@ -102,18 +85,8 @@ target_link_libraries(bms_afe_mock PRIVATE bms_warnings bms_sanitizers)
 
 if(BMS_BUILD_HOST_TESTS)
     enable_testing()
-    add_executable(bms_host_tests
-        tests/host/test_main.c
-        tests/host/test_app_core.c
-    )
-    target_link_libraries(bms_host_tests PRIVATE
-        bms_base
-        bms_boot_core
-        bms_app_core
-        bms_afe_mock
-        bms_warnings
-        bms_sanitizers
-    )
+    add_executable(bms_host_tests tests/host/test_main.c tests/host/test_app_core.c)
+    target_link_libraries(bms_host_tests PRIVATE bms_base bms_boot_core bms_app_core bms_afe_mock bms_warnings bms_sanitizers)
     add_test(NAME bms_host_tests COMMAND bms_host_tests)
 
     add_executable(bms_protection_manager_atomic_test tests/host/test_protection_manager_atomic.c)
@@ -137,6 +110,10 @@ if(BMS_BUILD_HOST_TESTS)
     add_executable(bms_protocol_service_test tests/host/test_protocol_service.c)
     target_link_libraries(bms_protocol_service_test PRIVATE bms_base bms_warnings bms_sanitizers)
     add_test(NAME bms_protocol_service_test COMMAND bms_protocol_service_test)
+
+    add_executable(bms_event_log_test tests/host/test_event_log.c)
+    target_link_libraries(bms_event_log_test PRIVATE bms_app_core bms_warnings bms_sanitizers)
+    add_test(NAME bms_event_log_test COMMAND bms_event_log_test)
 endif()
 
 if(CMAKE_CROSSCOMPILING)

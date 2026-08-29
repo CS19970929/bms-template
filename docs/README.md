@@ -13,6 +13,7 @@ This directory is the maintained engineering specification for `bms-template`. C
 - `STATE_MACHINE.md` — system states, events and transition ownership.
 - `PARAMETERS.md` — parameter identity, validation, permissions and persistence model.
 - `NVM.md` — atomic records, schema versioning, CRC and wear policy.
+- `EVENT_LOG.md` — runtime event record model, ring-buffer semantics and persistence boundary.
 - `SOC.md` — SOC estimation/display contract and calibration boundaries.
 - `BLE.md` — BLE transport, fragmentation and legacy-adapter boundary.
 - `UPPER_COMPUTER.md` — PC architecture, transports and upgrade flow.

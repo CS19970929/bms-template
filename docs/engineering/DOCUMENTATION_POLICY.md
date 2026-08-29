@@ -14,6 +14,7 @@ Path -> required owner documentation:
 - state-machine files -> `STATE_MACHINE.md`.
 - parameter runtime files, `schema/parameters.json`, parameter generator/generated outputs -> `PARAMETERS.md`.
 - NVM/persistence files -> `NVM.md`.
+- event-log runtime/persistence files -> `EVENT_LOG.md`; persistence-backend changes also update `NVM.md` when storage invariants change.
 - SOC/SOH files -> `SOC.md`.
 - `config/**`, target generator/linker generation -> `CONFIGURATION.md` and `FLASH_LAYOUT.md` when memory geometry changes.
 - BLE transport/legacy adapter -> `BLE.md`.
