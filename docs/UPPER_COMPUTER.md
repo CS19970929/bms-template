@@ -4,13 +4,17 @@ The desktop tool is a .NET 8 Windows application architecture with one domain cl
 
 ## Layers
 
-- `Bms.Protocol`: frame codec, IDs, errors and protocol-version/capability model.
+- `Bms.Protocol`: frame codec, generated stable IDs, errors and protocol-version/capability model.
 - `Bms.Transport`: `ITransport`; Serial and Windows BLE implementations, later CAN/TCP.
-- `Bms.Device`: `BmsClient`, typed device/protection/parameter/log APIs.
-- `Bms.Upgrade`: firmware package validation and Boot/IAP orchestration.
+- `Bms.Client`/device layer: `BmsClient`, typed device/protection/parameter/log APIs.
+- future `Bms.Upgrade`: firmware package validation and Boot/IAP orchestration.
 - UI: dashboard, cells/temps/current/SOC, MOS/state/protection/alarm, parameters/calibration, logs, upgrade, diagnostics and communication console.
 
 Transport classes do not contain BMS business rules. UI does not parse frames directly.
+
+## Generated protocol metadata
+
+`Bms.Protocol` links `generated/parameters/ParameterIds.g.cs`, generated from the same `schema/parameters.json` that produces firmware IDs and the Markdown table. C# must not maintain a second parameter-ID enum by hand. Windows cloud build therefore also compiles the generated ABI definitions.
 
 ## Upgrade flow
 
@@ -24,4 +28,4 @@ The tool should expose raw framed logs, sequence/CRC/timeout/retry counters, con
 
 ## Current status
 
-Implemented scaffolding: shared protocol/client, Serial transport, Windows BLE transport and cloud .NET Release/protocol smoke build. UI, full service model, firmware package and upgrade workflow are planned.
+Implemented scaffolding: shared protocol/client, Serial transport, Windows BLE transport, generated parameter IDs and cloud .NET Release/protocol smoke build. UI, complete service model, parameter editor, firmware package and upgrade workflow remain planned.

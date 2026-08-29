@@ -1,0 +1,12 @@
+/* Generated from schema/parameters.json. Do not edit. */
+#ifndef BMS_PARAMETER_IDS_H
+#define BMS_PARAMETER_IDS_H
+
+#include <stdint.h>
+
+#define BMS_PARAMETER_SCHEMA_VERSION UINT16_C(1)
+#define BMS_PARAM_ID_SOC_CURRENT_FLOOR_MA UINT16_C(257)
+#define BMS_PARAM_ID_SOC_REST_REQUIRED_MS UINT16_C(258)
+#define BMS_PARAM_ID_SOC_FORBID_REST_UPWARD_CORRECTION UINT16_C(259)
+
+#endif

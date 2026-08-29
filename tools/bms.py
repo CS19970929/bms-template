@@ -112,6 +112,7 @@ def main() -> int:
 
     sub.add_parser("targets", help="List resolved MCU/AFE/Board/Product targets")
     sub.add_parser("check", help="Run host quality/static-analysis gates")
+    sub.add_parser("schema", help="Regenerate firmware/PC/docs files from platform schemas")
 
     build = sub.add_parser("build", help="Build APP + IAP for one target with GCC O2")
     build.add_argument("--target", required=True, choices=target_names())
@@ -129,6 +130,8 @@ def main() -> int:
         print_targets()
     elif args.command == "check":
         run([sys.executable, "tools/check.py"])
+    elif args.command == "schema":
+        run([sys.executable, "tools/generate_parameters.py", "--write"])
     elif args.command == "build":
         build_firmware(args.target)
     elif args.command == "keil":

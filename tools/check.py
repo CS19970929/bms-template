@@ -156,6 +156,7 @@ def main() -> int:
     require("ninja")
 
     run([sys.executable, "tools/check_docs.py"])
+    run([sys.executable, "tools/generate_parameters.py", "--check"])
     validate_targets()
     scan_source_policy()
 

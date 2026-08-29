@@ -33,8 +33,6 @@ REQUIRED_DOCS = (
     "docs/adr/README.md",
 )
 
-# A rule is (path matcher, required owner documents). Matchers are intentionally simple
-# and conservative so the gate remains understandable to maintainers and AI agents.
 RULES: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("bootloader/", ("docs/BOOTLOADER.md",)),
     ("protocol/", ("docs/PROTOCOL.md",)),
@@ -50,8 +48,11 @@ RULES: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("app/core/include/bms_nvm", ("docs/NVM.md",)),
     ("app/core/src/bms_soc", ("docs/SOC.md",)),
     ("app/core/include/bms_soc", ("docs/SOC.md",)),
+    ("schema/parameters", ("docs/PARAMETERS.md",)),
+    ("generated/parameters/", ("docs/PARAMETERS.md",)),
     ("config/", ("docs/CONFIGURATION.md",)),
     ("tools/generate_target.py", ("docs/CONFIGURATION.md", "docs/FLASH_LAYOUT.md")),
+    ("tools/generate_parameters.py", ("docs/PARAMETERS.md", "docs/engineering/DOCUMENTATION_POLICY.md")),
     ("cmake/firmware.cmake", ("docs/FLASH_LAYOUT.md", "docs/CLOUD_CI.md")),
     ("platform/stm32f0/", ("docs/STM32F0_PORT.md",)),
     ("platform/stm32f1/", ("docs/STM32F1_PORT.md",)),

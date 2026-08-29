@@ -12,7 +12,7 @@ Path -> required owner documentation:
 - `protocol/**` -> `PROTOCOL.md`; PC protocol mapping also `UPPER_COMPUTER.md`/`BLE.md` as applicable.
 - `app/core/*protection*`, `*mos*` -> `PROTECTION.md`.
 - state-machine files -> `STATE_MACHINE.md`.
-- parameter/schema files -> `PARAMETERS.md`.
+- parameter runtime files, `schema/parameters.json`, parameter generator/generated outputs -> `PARAMETERS.md`.
 - NVM/persistence files -> `NVM.md`.
 - SOC/SOH files -> `SOC.md`.
 - `config/**`, target generator/linker generation -> `CONFIGURATION.md` and `FLASH_LAYOUT.md` when memory geometry changes.
@@ -27,11 +27,11 @@ Purpose, boundaries/ownership, stable data/state model, invariants, failure beha
 
 ## Machine checks
 
-`tools/check_docs.py` verifies the required document set, repository links and PR change coupling. CI fetches PR history sufficiently to compare against the base SHA. This check may not be bypassed by warning suppression or test deletion.
+`tools/check_docs.py` verifies the required document set, repository links and PR change coupling. CI fetches PR history sufficiently to compare against the base SHA. Schema generators have their own deterministic stale-output checks. These checks may not be bypassed by warning suppression or test deletion.
 
-## Generated documentation
+## Generated documentation/code
 
-When an ID/table is generated from schema, edit the schema—not generated Markdown/C#/C tables independently. CI should reject stale generated outputs once generation is introduced.
+Edit the owning schema, then run the supported generator. Do not independently edit generated Markdown/C#/C tables or IDs. CI rejects stale generated outputs. A generator or schema change is itself a behavior/ABI change and is coupled to the corresponding owner document.
 
 ## Review rule
 

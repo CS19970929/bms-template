@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "parameters": [
+    {
+      "id": 257,
+      "name": "SOC_CURRENT_FLOOR_MA",
+      "type": "U32",
+      "unit": "mA",
+      "write_access": "service",
+      "persistent": true
+    },
+    {
+      "id": 258,
+      "name": "SOC_REST_REQUIRED_MS",
+      "type": "U32",
+      "unit": "ms",
+      "write_access": "service",
+      "persistent": true
+    },
+    {
+      "id": 259,
+      "name": "SOC_FORBID_REST_UPWARD_CORRECTION",
+      "type": "BOOL",
+      "unit": "bool",
+      "write_access": "service",
+      "persistent": true
+    }
+  ]
+}
