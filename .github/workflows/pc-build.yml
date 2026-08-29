@@ -1,0 +1,22 @@
+name: pc-build
+on:
+  pull_request:
+    paths: ["pc/**", ".github/workflows/pc-build.yml"]
+  push:
+    branches: [main]
+    paths: ["pc/**", ".github/workflows/pc-build.yml"]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  windows-build:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with: {dotnet-version: "8.0.x"}
+      - name: Build Release
+        run: dotnet build pc/BmsTool.sln -c Release --nologo
+      - name: Protocol smoke
+        run: dotnet run --project pc/tests/Bms.Protocol.Smoke/Bms.Protocol.Smoke.csproj -c Release

@@ -1,0 +1,11 @@
+<Window x:Class="Bms.Tool.MainWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="BMS Tool" Height="520" Width="900">
+  <Grid Margin="12"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+    <StackPanel Orientation="Horizontal">
+      <TextBlock VerticalAlignment="Center" Text="Serial:" Margin="0,0,6,0"/><ComboBox x:Name="PortBox" Width="130"/>
+      <Button Content="Refresh" Margin="8,0" Padding="12,4" Click="RefreshSerial_Click"/>
+      <Button Content="Connect Serial" Padding="12,4" Click="ConnectSerial_Click"/>
+      <Button Content="Scan BLE" Margin="16,0,0,0" Padding="12,4" Click="ScanBle_Click"/>
+    </StackPanel>
+    <TextBox x:Name="LogBox" Grid.Row="1" Margin="0,12,0,0" IsReadOnly="True" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" FontFamily="Consolas"/>
+  </Grid>
+</Window>
