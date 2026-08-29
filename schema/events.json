@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "events": [
+    {"id": 257, "name": "BOOT_START", "source": "boot", "severity": "info", "data0": "boot_reason", "data1": "reset_cause"},
+    {"id": 513, "name": "SYSTEM_STATE_CHANGE", "source": "system", "severity": "info", "data0": "from_state", "data1": "to_state"},
+    {"id": 514, "name": "WATCHDOG_HEALTH_FAILURE", "source": "system", "severity": "fault", "data0": "required_mask", "data1": "observed_mask"},
+    {"id": 769, "name": "PROTECTION_TRIP", "source": "protection", "severity": "protection", "data0": "protection_id", "data1": "measurement"},
+    {"id": 770, "name": "PROTECTION_RELEASE", "source": "protection", "severity": "info", "data0": "protection_id", "data1": "measurement"},
+    {"id": 771, "name": "PROTECTION_LATCH_CLEARED", "source": "protection", "severity": "info", "data0": "protection_id", "data1": "reserved_zero"},
+    {"id": 1025, "name": "PARAMETER_COMMIT", "source": "parameter", "severity": "info", "data0": "nvm_sequence", "data1": "entry_count"},
+    {"id": 1026, "name": "PARAMETER_RESTORE_FAILED", "source": "parameter", "severity": "warning", "data0": "error_code", "data1": "reserved_zero"},
+    {"id": 1281, "name": "NVM_ERROR", "source": "nvm", "severity": "fault", "data0": "operation_code", "data1": "result_code"},
+    {"id": 1537, "name": "IAP_RESULT", "source": "iap", "severity": "info", "data0": "status_code", "data1": "detail_code"},
+    {"id": 1793, "name": "AFE_FAULT", "source": "afe", "severity": "fault", "data0": "fault_bitmap", "data1": "detail_code"},
+    {"id": 2049, "name": "COMM_ERROR", "source": "comm", "severity": "warning", "data0": "channel_id", "data1": "error_code"}
+  ]
+}

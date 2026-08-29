@@ -1,0 +1,25 @@
+{
+  "name": "stm32f103c8",
+  "part": "STM32F103C8T6",
+  "id": 2,
+  "family": "stm32f1",
+  "core": "cortex-m3",
+  "device_define": "STM32F10X_MD",
+  "keil_device": "STM32F103C8",
+  "keil_pack": "Keil.STM32F1xx_DFP.2.3.0",
+  "clock_hz": 64000000,
+  "flash": {
+    "start": "0x08000000",
+    "size": 65536,
+    "page_size": 1024
+  },
+  "ram": {
+    "start": "0x20000000",
+    "size": 20480
+  },
+  "vector": {
+    "mode": "vtor",
+    "reserved_ram": 0
+  },
+  "vendor": "stm32f10x_stdperiph_v3.5.0"
+}

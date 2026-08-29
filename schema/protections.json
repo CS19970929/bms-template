@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "protections": [
+    {"id": 257, "name": "CELL_OV", "category": "voltage", "detector_kind": "high", "measurement": "cell_max_mv"},
+    {"id": 258, "name": "CELL_UV", "category": "voltage", "detector_kind": "low", "measurement": "cell_min_mv"},
+    {"id": 513, "name": "CHARGE_OC", "category": "current", "detector_kind": "high", "measurement": "charge_current_ma"},
+    {"id": 514, "name": "DISCHARGE_OC", "category": "current", "detector_kind": "high", "measurement": "discharge_current_ma"},
+    {"id": 515, "name": "SHORT_CIRCUIT", "category": "current", "detector_kind": "external", "measurement": "afe_short_circuit"},
+    {"id": 769, "name": "CHARGE_OTP", "category": "temperature", "detector_kind": "high", "measurement": "charge_temp_max_decic"},
+    {"id": 770, "name": "CHARGE_UTP", "category": "temperature", "detector_kind": "low", "measurement": "charge_temp_min_decic"},
+    {"id": 771, "name": "DISCHARGE_OTP", "category": "temperature", "detector_kind": "high", "measurement": "discharge_temp_max_decic"},
+    {"id": 772, "name": "DISCHARGE_UTP", "category": "temperature", "detector_kind": "low", "measurement": "discharge_temp_min_decic"},
+    {"id": 773, "name": "MOS_OTP", "category": "temperature", "detector_kind": "high", "measurement": "mos_temp_max_decic"},
+    {"id": 1025, "name": "PACK_OV", "category": "voltage", "detector_kind": "high", "measurement": "pack_voltage_mv"},
+    {"id": 1026, "name": "PACK_UV", "category": "voltage", "detector_kind": "low", "measurement": "pack_voltage_mv"},
+    {"id": 1281, "name": "SOC_LOW", "category": "soc", "detector_kind": "low", "measurement": "soc_permille"},
+    {"id": 1537, "name": "AFE_FAULT", "category": "hardware", "detector_kind": "external", "measurement": "afe_fault_bitmap"}
+  ]
+}

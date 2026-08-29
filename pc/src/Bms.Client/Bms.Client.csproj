@@ -1,0 +1,4 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><TargetFramework>net8.0-windows10.0.19041.0</TargetFramework><Nullable>enable</Nullable><ImplicitUsings>enable</ImplicitUsings><TreatWarningsAsErrors>true</TreatWarningsAsErrors></PropertyGroup>
+  <ItemGroup><ProjectReference Include="..\Bms.Protocol\Bms.Protocol.csproj" /><ProjectReference Include="..\Bms.Transport\Bms.Transport.csproj" /></ItemGroup>
+</Project>

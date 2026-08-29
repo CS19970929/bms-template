@@ -1,0 +1,91 @@
+name: firmware-build
+
+on:
+  pull_request:
+    paths:
+      - "app/**"
+      - "bootloader/**"
+      - "common/**"
+      - "protocol/**"
+      - "platform/**"
+      - "drivers/**"
+      - "config/**"
+      - "cmake/**"
+      - "CMakeLists.txt"
+      - "CMakePresets.json"
+      - "tools/bootstrap_vendor.py"
+      - "tools/generate_target.py"
+      - "tools/generate_keil.py"
+      - "tools/check_firmware_image.py"
+      - ".github/workflows/firmware-build.yml"
+  push:
+    branches: [main]
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  gcc-o2:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - preset: f030
+            family: f0
+            target: stm32f030c8
+            target_config: stm32f030c8_mock
+          - preset: f103
+            family: f1
+            target: stm32f103c8
+            target_config: stm32f103c8_mock
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install ARM GCC
+        run: sudo apt-get update && sudo apt-get install -y cmake ninja-build gcc-arm-none-eabi
+      - name: Bootstrap pinned ST vendor subset
+        run: python3 tools/bootstrap_vendor.py --family ${{ matrix.family }}
+      - name: Configure
+        run: cmake --fresh --preset ${{ matrix.preset }}
+      - name: Build O2 APP and Bootloader
+        run: cmake --build --preset ${{ matrix.preset }}
+      - name: Enforce generated image budgets
+        run: >-
+          python3 tools/check_firmware_image.py
+          --build-dir build/${{ matrix.preset }}
+          --target ${{ matrix.target_config }}
+      - name: Generate Keil debug view from same source graph
+        shell: bash
+        run: |
+          stage="build/keil/${{ matrix.target_config }}/generated/${{ matrix.target_config }}"
+          mkdir -p "$stage"
+          cp -a "build/${{ matrix.preset }}/generated/${{ matrix.target_config }}/." "$stage/"
+          python3 tools/generate_keil.py \
+            --target "${{ matrix.target_config }}" \
+            --no-configure \
+            --out "build/${{ matrix.preset }}/keil"
+          python3 - <<'PY'
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+          files = sorted(Path("build/${{ matrix.preset }}/keil").glob("*.uvprojx"))
+          if len(files) != 2:
+              raise SystemExit(f"expected 2 Keil projects, found {len(files)}")
+          for path in files:
+              ET.parse(path)
+              print("valid Keil XML:", path)
+          PY
+      - name: Upload firmware artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.target }}-gcc-o2
+          if-no-files-found: error
+          path: |
+            build/${{ matrix.preset }}/*.elf
+            build/${{ matrix.preset }}/*.map
+            build/${{ matrix.preset }}/*.hex
+            build/${{ matrix.preset }}/*.bin
+            build/${{ matrix.preset }}/generated/${{ matrix.target_config }}/target-summary.json
+            build/${{ matrix.preset }}/keil/*.uvprojx

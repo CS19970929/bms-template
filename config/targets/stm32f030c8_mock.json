@@ -1,0 +1,7 @@
+{
+  "name": "stm32f030c8_mock",
+  "mcu": "stm32f030c8",
+  "afe": "mock",
+  "board": "reference_common",
+  "product": "reference_16s"
+}

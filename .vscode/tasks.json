@@ -1,0 +1,75 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "BMS: regenerate schemas",
+      "type": "shell",
+      "command": "python",
+      "args": ["tools/bms.py", "schema"],
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "BMS: quality gate",
+      "type": "shell",
+      "command": "python",
+      "args": ["tools/bms.py", "check"],
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "BMS: build F030 APP+IAP",
+      "type": "shell",
+      "command": "python",
+      "args": ["tools/bms.py", "build", "--target", "stm32f030c8_mock"],
+      "group": "build",
+      "problemMatcher": ["$gcc"]
+    },
+    {
+      "label": "BMS: build F103 APP+IAP",
+      "type": "shell",
+      "command": "python",
+      "args": ["tools/bms.py", "build", "--target", "stm32f103c8_mock"],
+      "group": "build",
+      "problemMatcher": ["$gcc"]
+    },
+    {
+      "label": "BMS: generate Keil F030",
+      "type": "shell",
+      "command": "python",
+      "args": ["tools/bms.py", "keil", "--target", "stm32f030c8_mock"],
+      "problemMatcher": []
+    },
+    {
+      "label": "BMS: generate Keil F103",
+      "type": "shell",
+      "command": "python",
+      "args": ["tools/bms.py", "keil", "--target", "stm32f103c8_mock"],
+      "problemMatcher": []
+    },
+    {
+      "label": "BMS: build PC tool",
+      "type": "shell",
+      "command": "python",
+      "args": ["tools/bms.py", "pc"],
+      "group": "build",
+      "problemMatcher": ["$msCompile"]
+    },
+    {
+      "label": "BMS: full local F030 verify",
+      "type": "shell",
+      "command": "python",
+      "args": ["tools/bms.py", "all", "--target", "stm32f030c8_mock"],
+      "group": "test",
+      "problemMatcher": ["$gcc", "$msCompile"]
+    },
+    {
+      "label": "BMS: full local F103 verify",
+      "type": "shell",
+      "command": "python",
+      "args": ["tools/bms.py", "all", "--target", "stm32f103c8_mock"],
+      "group": "test",
+      "problemMatcher": ["$gcc", "$msCompile"]
+    }
+  ]
+}

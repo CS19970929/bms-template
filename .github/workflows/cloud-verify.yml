@@ -1,0 +1,35 @@
+name: cloud-verify
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  BMS_CLOUD_VERIFY: "1"
+
+jobs:
+  host-quality:
+    uses: ./.github/workflows/quality-gate.yml
+
+  firmware:
+    uses: ./.github/workflows/firmware-build.yml
+
+  pc:
+    uses: ./.github/workflows/pc-build.yml
+
+  summary:
+    needs: [host-quality, firmware, pc]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify required cloud gates
+        shell: bash
+        run: |
+          echo "host-quality=${{ needs.host-quality.result }}"
+          echo "firmware=${{ needs.firmware.result }}"
+          echo "pc=${{ needs.pc.result }}"
+          test "${{ needs.host-quality.result }}" = "success"
+          test "${{ needs.firmware.result }}" = "success"
+          test "${{ needs.pc.result }}" = "success"
