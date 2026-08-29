@@ -2,6 +2,14 @@
   "version": "2.0.0",
   "tasks": [
     {
+      "label": "BMS: regenerate schemas",
+      "type": "shell",
+      "command": "python",
+      "args": ["tools/bms.py", "schema"],
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
       "label": "BMS: quality gate",
       "type": "shell",
       "command": "python",
