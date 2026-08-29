@@ -142,7 +142,7 @@ static int test_iap(void)
     c.app_start=flash.base; c.app_end_exclusive=flash.base+(uint32_t)sizeof(flash.bytes); c.ram_start=0x20000000UL; c.ram_end_exclusive=0x20002000UL;
     c.mcu_id=BMS_MCU_STM32F030C8; c.product_id=42U;
     image.magic=BMS_IMAGE_MAGIC; image.manifest_version=BMS_IMAGE_MANIFEST_VERSION; image.mcu_id=c.mcu_id; image.product_id=c.product_id;
-    image.image_size=sizeof(app); image.image_crc32=bms_crc32(app,sizeof(app));
+    image.image_size=(uint32_t)sizeof(app); image.image_crc32=bms_crc32(app,sizeof(app));
     bms_iap_session_init(&session,&c);
     CHECK(bms_iap_start(&session,&storage,&image)==BMS_IAP_OK); CHECK(flash.erase_count==1U);
     meta=bms_boot_metadata_select(&flash.meta_a,&flash.meta_b); CHECK(meta!=NULL); CHECK(meta->state==(uint32_t)BMS_BOOT_META_RECEIVING);
@@ -155,7 +155,6 @@ static int test_iap(void)
     CHECK(bms_iap_commit(&session,&storage)==BMS_IAP_OK); CHECK(session.state==BMS_IAP_STATE_READY);
     meta=bms_boot_metadata_select(&flash.meta_a,&flash.meta_b); CHECK(meta!=NULL); CHECK(meta->state==(uint32_t)BMS_BOOT_META_READY);
 
-    /* A power loss before COMMIT leaves RECEIVING metadata. Boot must treat that as non-bootable. */
     (void)memset(&flash.meta_a,0,sizeof(flash.meta_a)); (void)memset(&flash.meta_b,0,sizeof(flash.meta_b)); flash.use_b=0U;
     bms_iap_session_init(&session,&c); CHECK(bms_iap_start(&session,&storage,&image)==BMS_IAP_OK);
     CHECK(bms_iap_write_chunk(&session,&storage,0U,&app[0],8U)==BMS_IAP_OK);

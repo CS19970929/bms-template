@@ -1,4 +1,5 @@
 using Windows.Devices.Bluetooth.Advertisement;
+using Windows.Foundation;
 
 namespace Bms.Transport;
 
