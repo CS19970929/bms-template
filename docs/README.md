@@ -32,7 +32,7 @@ This directory is the maintained engineering specification for `bms-template`. C
 - `engineering/AI_DEVELOPMENT.md` — AI contribution workflow and Definition of Done.
 - `engineering/DOCUMENTATION_POLICY.md` — documentation ownership and change-coupling rules.
 - `engineering/TRACEABILITY.md` — requirement/design/code/test/evidence traceability model.
-- `adr/` — accepted architecture decisions and their rationale.
+- `adr/README.md` — ADR index; individual ADRs record accepted architectural decisions and rationale.
 
 ## Documentation status vocabulary
 
