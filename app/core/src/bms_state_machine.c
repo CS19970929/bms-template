@@ -1,4 +1,5 @@
 #include "bms_state_machine.h"
+#include <stddef.h>
 
 static int bms_state_is_operational(bms_system_state_t state)
 {
