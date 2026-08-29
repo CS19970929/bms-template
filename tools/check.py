@@ -5,6 +5,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -76,6 +77,25 @@ def host_test_binary(preset: str) -> Path:
     return ROOT / "build" / preset / f"bms_host_tests{suffix}"
 
 
+def validate_targets() -> None:
+    targets = sorted((ROOT / "config/targets").glob("*.json"))
+    if not targets:
+        raise SystemExit("no target configurations found")
+    output_root = ROOT / "build/config-check"
+    for target in targets:
+        run(
+            [
+                sys.executable,
+                "tools/generate_target.py",
+                "--target",
+                target.stem,
+                "--out",
+                str(output_root / target.stem),
+            ]
+        )
+    print(f"TARGET_CONFIG_GATE_PASS ({len(targets)} targets)")
+
+
 def scan_source_policy() -> None:
     failures: list[str] = []
     for root_name in PRODUCTION_ROOTS:
@@ -135,6 +155,7 @@ def main() -> int:
     require("cmake")
     require("ninja")
 
+    validate_targets()
     scan_source_policy()
 
     cmake_cycle("host-debug")
