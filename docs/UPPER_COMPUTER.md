@@ -4,26 +4,26 @@ The desktop tool is a .NET 8 Windows architecture with one domain client and plu
 
 ## Layers
 
-- `Bms.Protocol`: frame codec, generated stable IDs, errors and protocol-version/capability model.
-- `Bms.Transport`: `ITransport`; Serial and Windows BLE implementations, later CAN/TCP.
-- `Bms.Client`: typed device/protection/parameter/log APIs.
-- future `Bms.Upgrade`: package validation and Boot/IAP orchestration.
-- UI: dashboard, cells/temps/current/SOC, MOS/state/protection/alarm, parameters/calibration, logs, upgrade, diagnostics and communication console.
+- `Bms.Protocol`: frame codec, generated stable IDs and wire payload models.
+- `Bms.Transport`: Serial/Windows BLE `ITransport`, later CAN/TCP.
+- `Bms.Client`: typed Device/Protection/Parameter/Log APIs.
+- future `Bms.Upgrade`: package validation and IAP orchestration.
+- UI: dashboard, telemetry, protection/alarm, parameters, logs, upgrade, diagnostics and communication console.
 
 Transport classes do not contain BMS business rules. UI does not parse frames directly.
 
 ## Generated ABI metadata
 
-`Bms.Protocol` links generated Parameter IDs, Protection IDs and Event IDs. All originate from the same platform schemas that produce firmware C IDs and Markdown tables. C# must not maintain independent magic-number enums.
+`Bms.Protocol` links generated Command, Parameter, Protection and Event IDs. Each originates from the same schema that produces firmware C IDs and generated Markdown. C# must not maintain a separate command enum or magic-number table.
 
-Product thresholds/delays/actions are not embedded in identity classes; the PC reads device/product descriptors through protocol services. Event UI text may be localized in the PC, but the stable event ID and `data0/data1` semantics come from the Event schema.
+Product thresholds/actions are descriptor data, not identity constants. Event UI strings may be localized but stable IDs and data semantics come from the Event schema.
 
 ## Upgrade flow
 
-`select package -> validate manifest/target/checksums -> request APP enter IAP -> reconnect Boot -> query info -> START/ERASE/WRITE -> VERIFY -> COMMIT -> reboot -> reconnect APP -> confirm version/health`
+`select package -> validate -> request APP enter IAP -> reconnect Boot -> query -> transfer -> verify -> commit -> reboot -> reconnect APP -> confirm health/version`
 
-PC validation improves usability but Boot validates independently.
+PC validation is not a trust boundary; Boot validates independently.
 
 ## Current status
 
-Implemented: shared frame protocol/client scaffolding, Serial transport, Windows BLE transport scaffold, generated Parameter/Protection/Event IDs and Windows Release/protocol-smoke build. Concrete service payload models, UI, firmware package and end-to-end upgrade orchestration remain planned.
+Implemented: shared frame/client scaffolding, Serial transport, Windows BLE scaffold, generated Command/Parameter/Protection/Event IDs and Windows Release/protocol smoke. Concrete payload codecs/service APIs, UI and end-to-end upgrade orchestration remain planned.

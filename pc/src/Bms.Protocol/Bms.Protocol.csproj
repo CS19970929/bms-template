@@ -6,6 +6,7 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="../../../generated/commands/CommandIds.g.cs" Link="Generated/CommandIds.g.cs" />
     <Compile Include="../../../generated/parameters/ParameterIds.g.cs" Link="Generated/ParameterIds.g.cs" />
     <Compile Include="../../../generated/protections/ProtectionIds.g.cs" Link="Generated/ProtectionIds.g.cs" />
     <Compile Include="../../../generated/events/EventIds.g.cs" Link="Generated/EventIds.g.cs" />
