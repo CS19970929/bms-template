@@ -1,41 +1,41 @@
 # Parameter system
 
-Parameters are typed product configuration data with stable identity, validation and persistence semantics. They are not arbitrary exposed C globals.
+Parameters are a stable product/domain interface, not raw C variables or protocol register aliases.
 
-## Stable identity source of truth
+## Identity and schema
 
-`schema/parameters.json` is now the single source for cross-component parameter ABI identity: numeric ID, symbolic name, type, unit, write-access class and persistence attribute. It deliberately does **not** define board/product thresholds or min/default/max values; those remain product configuration/descriptor policy so a hardware-specific value cannot silently become platform ABI.
+`schema/parameters.json` owns stable cross-firmware/PC/document parameter identity: ID, symbolic name, type, unit, write-access class and persistent flag. Product-specific default/min/max values and cross-field rules stay in product descriptors rather than the platform ABI catalog.
 
-`tools/generate_parameters.py --write` deterministically generates:
+The schema generator produces C IDs, C# IDs and the generated Markdown identity table. CI rejects stale generated output, Host compiles the generated C header and Windows builds the generated C# definitions.
 
-- `generated/parameters/bms_parameter_ids.h` for firmware;
-- `generated/parameters/ParameterIds.g.cs` linked into `Bms.Protocol`;
-- `docs/generated/PARAMETER_TABLE.md` for human/protocol review.
+## Runtime descriptors and transactions
 
-`tools/check.py` runs the generator in `--check` mode. Missing/stale/manual-edited generated outputs fail CI. `python tools/bms.py schema` is the supported regeneration command.
+Each runtime descriptor defines ID, I32/U32/BOOL type, default, minimum, maximum, write-access mask and persistent flag. Writes occur through a caller-owned transaction: active values are copied to staged values, individual writes validate ID/type/range/permission, an optional cross-field validator sees the complete staged set, then all active values are replaced atomically. Abort or any failed validation leaves active values unchanged.
 
-The initial stable IDs cover SOC current-floor, rest-duration and no-upward-rest-correction identity. Product-specific values are still supplied separately.
+## Canonical persistence payload
 
-## Implemented runtime core
+`bms_parameter_persistence` now defines a compiler-independent payload that can be stored inside `bms_nvm_store`; the runtime `bms_param_value_t[]` array is never written raw.
 
-`bms_parameter` provides descriptors with stable ID, type (`I32/U32/BOOL`), default/min/max, write-access mask and persistence flag. Caller-owned active/staged arrays keep the core allocation-free.
+Format version 1 is little-endian:
 
-Transaction flow:
+- 8-byte header: magic `BPAR`, format version `u16`, entry count `u16`.
+- each 8-byte entry: parameter ID `u16`, type `u8`, reserved `u8=0`, canonical 32-bit value.
+- only descriptors marked persistent are encoded.
 
-`begin copy -> set(id,type,value,caller access) -> per-field validation -> optional cross-field validation -> atomic RAM commit / abort`
+Encoding validates the descriptor table, duplicate/non-zero IDs, type/default validity and every persisted active value before producing bytes. Restore copies active values to caller-owned staged RAM, validates the complete payload, rejects duplicate entries, known non-persistent IDs, known type mismatches and out-of-range values, optionally runs the same cross-field validator, then replaces active values only after all checks succeed.
 
-A failed set or cross-field validation does not partially update the active array.
+Unknown IDs are ignored so adding a new persistent parameter does not make an older descriptor set unreadable. Missing IDs retain the caller's existing value; startup code should therefore load current product defaults before applying a stored payload. A new value representation or incompatible payload rule requires a persistence-format version change.
 
-## Access
+## Access policy
 
-Write masks distinguish User, Service and Factory capability. A descriptor with no matching caller bit is not writable through the transaction API. Read-only/telemetry identity remains outside write transactions.
+`User`, `Service`, and `Factory` are write capabilities, not UI labels. Protocol handlers must authenticate/select a caller capability before invoking transaction set. Read visibility can be added separately; write access never implies direct Flash access.
 
-## Safety rules
+## Integration with NVM
 
-The generic core cannot know protection relationships; cross-field callback is the mandatory extension point for product rules such as release<trip, protection-level ordering or hardware-supported ranges.
+The parameter codec is independent of Flash and sequence/CRC. `bms_nvm_store` supplies atomic two-slot commit, sequence and outer CRC; STM32 platform callbacks supply physical erase/program. A product parameter service will compose these layers and define commit cadence, dirty tracking and startup fallback policy.
 
-## Evolution rules
+## Verification
 
-Published IDs are append-only. Renaming a symbol does not permit ID reuse. Type/semantic incompatible changes require a new ID and, where persistent layout changes, a new NVM schema/migration. Firmware and PC must consume generated definitions rather than private copies.
+Host tests cover runtime type/range/permission/transaction behavior plus persistence round-trip, signed I32 encoding, persistent-only output, unknown-ID compatibility, duplicate-entry rejection, invalid-value atomic rejection and encode-time value validation. O0/O2 equivalence and sanitizers execute the production codec.
 
-Status: stable schema/generator + C/C#/Markdown drift gate + typed descriptor/transaction core + Host tests **Implemented**; product value schema, persistence binding and protocol read/write services **Planned**.
+Status: stable Parameter ABI schema + runtime transaction core + canonical ID-based persistence codec **Implemented**; product descriptor generation, typed NVM service/dirty policy and protocol Parameter handlers **Planned**.

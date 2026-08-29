@@ -71,6 +71,7 @@ add_library(bms_app_core STATIC
     app/core/src/bms_scheduler.c
     app/core/src/bms_state_machine.c
     app/core/src/bms_parameter.c
+    app/core/src/bms_parameter_persistence.c
     app/core/src/bms_nvm_record.c
     app/core/src/bms_nvm_store.c
     app/core/src/bms_event_log.c
@@ -114,6 +115,10 @@ if(BMS_BUILD_HOST_TESTS)
     add_executable(bms_event_log_test tests/host/test_event_log.c)
     target_link_libraries(bms_event_log_test PRIVATE bms_app_core bms_warnings bms_sanitizers)
     add_test(NAME bms_event_log_test COMMAND bms_event_log_test)
+
+    add_executable(bms_parameter_persistence_test tests/host/test_parameter_persistence.c)
+    target_link_libraries(bms_parameter_persistence_test PRIVATE bms_app_core bms_warnings bms_sanitizers)
+    add_test(NAME bms_parameter_persistence_test COMMAND bms_parameter_persistence_test)
 endif()
 
 if(CMAKE_CROSSCOMPILING)
