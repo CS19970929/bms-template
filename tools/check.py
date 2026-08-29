@@ -155,6 +155,7 @@ def main() -> int:
     require("cmake")
     require("ninja")
 
+    run([sys.executable, "tools/check_docs.py"])
     validate_targets()
     scan_source_policy()
 
