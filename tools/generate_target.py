@@ -4,102 +4,239 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
+from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
-MCU_IDS = {"STM32F030C8T6": 1, "STM32F103C8T6": 2}
 TOPOLOGY_IDS = {"common": 0, "separate": 1}
-VECTOR_RESERVED = {"stm32f0": 0xC0, "stm32f1": 0}
+SUPPORTED_VECTOR_MODES = {"sram-remap", "vtor"}
 
 
 def as_int(value: int | str) -> int:
     return int(value, 0) if isinstance(value, str) else int(value)
 
 
-def validate(cfg: dict) -> None:
-    required = ["name", "mcu", "mcu_family", "afe", "product_id", "cell_count", "port_topology", "flash", "ram"]
-    missing = [key for key in required if key not in cfg]
+def load_json(kind: str, name: str) -> dict[str, Any]:
+    path = ROOT / "config" / kind / f"{name}.json"
+    if not path.is_file():
+        raise ValueError(f"missing {kind} profile: {name} ({path})")
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if data.get("name") != name:
+        raise ValueError(f"{path}: name must be {name!r}")
+    return data
+
+
+def load_target(name: str) -> dict[str, Any]:
+    target_path = ROOT / "config" / "targets" / f"{name}.json"
+    if not target_path.is_file():
+        raise ValueError(f"missing target: {name} ({target_path})")
+    target = json.loads(target_path.read_text(encoding="utf-8"))
+    required = ("name", "mcu", "afe", "board", "product")
+    missing = [key for key in required if key not in target]
     if missing:
-        raise ValueError(f"missing target keys: {', '.join(missing)}")
-    if cfg["mcu"] not in MCU_IDS:
-        raise ValueError(f"unsupported MCU id mapping: {cfg['mcu']}")
-    if cfg["port_topology"] not in TOPOLOGY_IDS:
-        raise ValueError(f"unsupported port_topology: {cfg['port_topology']}")
-    if cfg["mcu_family"] not in VECTOR_RESERVED:
-        raise ValueError(f"unsupported MCU family: {cfg['mcu_family']}")
-    if not (1 <= int(cfg["cell_count"]) <= 32):
-        raise ValueError("cell_count must be 1..32")
+        raise ValueError(f"{target_path}: missing keys: {', '.join(missing)}")
+    if target["name"] != name:
+        raise ValueError(f"{target_path}: name must be {name!r}")
 
-    f = cfg["flash"]
-    boot_start, boot_size = as_int(f["boot_start"]), as_int(f["boot_size"])
-    app_start, app_size = as_int(f["app_start"]), as_int(f["app_size"])
-    meta_start, meta_size = as_int(f["metadata_start"]), as_int(f["metadata_size"])
-    if boot_start + boot_size != app_start:
-        raise ValueError("boot region must end exactly at app_start")
-    if app_start + app_size != meta_start:
-        raise ValueError("app region must end exactly at metadata_start")
-    if meta_size < 2048:
-        raise ValueError("metadata region must provide at least two 1 KiB records/pages")
-    if (boot_start | app_start | meta_start) & 1:
-        raise ValueError("flash regions must be at least halfword aligned")
+    mcu = load_json("mcu", str(target["mcu"]))
+    afe = load_json("afe", str(target["afe"]))
+    board = load_json("boards", str(target["board"]))
+    product = load_json("products", str(target["product"]))
 
-    r = cfg["ram"]
-    ram_size = as_int(r["size"])
-    reserved = VECTOR_RESERVED[cfg["mcu_family"]]
-    if ram_size <= reserved:
-        raise ValueError("RAM is too small for vector reservation")
+    validate_profiles(mcu, afe, board, product)
+
+    flash_start = as_int(mcu["flash"]["start"])
+    flash_size = as_int(mcu["flash"]["size"])
+    page_size = as_int(mcu["flash"]["page_size"])
+    boot_size = as_int(product["firmware"]["boot_size"])
+    metadata_size = as_int(product["firmware"]["metadata_size"])
+    flash_end = flash_start + flash_size
+    boot_start = flash_start
+    app_start = boot_start + boot_size
+    metadata_start = flash_end - metadata_size
+    app_size = metadata_start - app_start
+
+    if boot_size <= 0 or metadata_size <= 0 or app_size <= 0:
+        raise ValueError("firmware flash regions must all be non-empty")
+    if (boot_size % page_size) != 0:
+        raise ValueError("product boot_size must align to MCU flash page_size")
+    if (metadata_size % page_size) != 0:
+        raise ValueError("product metadata_size must align to MCU flash page_size")
+    if metadata_size < (2 * page_size):
+        raise ValueError("metadata_size must provide at least two MCU flash pages")
+    if (app_start % page_size) != 0 or (metadata_start % page_size) != 0:
+        raise ValueError("derived APP/metadata regions must be page aligned")
+
+    ram_start = as_int(mcu["ram"]["start"])
+    ram_size = as_int(mcu["ram"]["size"])
+    vector_reserved = as_int(mcu["vector"]["reserved_ram"])
+    if vector_reserved < 0 or vector_reserved >= ram_size:
+        raise ValueError("invalid MCU vector reserved_ram")
+
+    return {
+        "name": name,
+        "refs": {
+            "mcu": target["mcu"],
+            "afe": target["afe"],
+            "board": target["board"],
+            "product": target["product"],
+        },
+        "mcu": mcu,
+        "afe": afe,
+        "board": board,
+        "product": product,
+        "flash": {
+            "start": flash_start,
+            "size": flash_size,
+            "end": flash_end,
+            "page_size": page_size,
+            "boot_start": boot_start,
+            "boot_size": boot_size,
+            "app_start": app_start,
+            "app_size": app_size,
+            "app_end": metadata_start,
+            "metadata_start": metadata_start,
+            "metadata_size": metadata_size,
+        },
+        "ram": {
+            "start": ram_start,
+            "size": ram_size,
+            "end": ram_start + ram_size,
+            "vector_reserved": vector_reserved,
+        },
+    }
 
 
-def write_header(cfg: dict, out: Path) -> None:
-    f, r = cfg["flash"], cfg["ram"]
-    boot_start, boot_size = as_int(f["boot_start"]), as_int(f["boot_size"])
-    app_start, app_size = as_int(f["app_start"]), as_int(f["app_size"])
-    meta_start, meta_size = as_int(f["metadata_start"]), as_int(f["metadata_size"])
-    ram_start, ram_size = as_int(r["start"]), as_int(r["size"])
+def validate_profiles(
+    mcu: dict[str, Any],
+    afe: dict[str, Any],
+    board: dict[str, Any],
+    product: dict[str, Any],
+) -> None:
+    for key in (
+        "id",
+        "family",
+        "core",
+        "device_define",
+        "keil_device",
+        "keil_pack",
+        "clock_hz",
+        "flash",
+        "ram",
+        "vector",
+        "vendor",
+    ):
+        if key not in mcu:
+            raise ValueError(f"MCU {mcu['name']}: missing {key}")
+
+    if int(mcu["id"]) <= 0:
+        raise ValueError("MCU id must be positive")
+    if as_int(mcu["clock_hz"]) <= 0:
+        raise ValueError("MCU clock_hz must be positive")
+    if as_int(mcu["flash"]["size"]) <= 0 or as_int(mcu["flash"]["page_size"]) <= 0:
+        raise ValueError("MCU flash size/page_size must be positive")
+    if as_int(mcu["ram"]["size"]) <= 0:
+        raise ValueError("MCU RAM size must be positive")
+    if mcu["vector"].get("mode") not in SUPPORTED_VECTOR_MODES:
+        raise ValueError(f"unsupported vector mode: {mcu['vector'].get('mode')}")
+
+    cell_count = int(product.get("cell_count", 0))
+    if not 1 <= cell_count <= 32:
+        raise ValueError("product cell_count must be 1..32")
+    if int(product.get("product_id", 0)) <= 0:
+        raise ValueError("product product_id must be positive")
+    if cell_count > int(afe.get("max_cells", 0)):
+        raise ValueError(
+            f"product requires {cell_count} cells but AFE {afe['name']} supports only {afe.get('max_cells')}"
+        )
+    if board.get("port_topology") not in TOPOLOGY_IDS:
+        raise ValueError(f"unsupported board port_topology: {board.get('port_topology')}")
+    if "firmware" not in product:
+        raise ValueError("product firmware layout policy is missing")
+
+
+def write_header(cfg: dict[str, Any], out: Path) -> None:
+    mcu = cfg["mcu"]
+    afe = cfg["afe"]
+    board = cfg["board"]
+    product = cfg["product"]
+    flash = cfg["flash"]
+    ram = cfg["ram"]
+    page_size = flash["page_size"]
+
     text = f"""#ifndef BMS_TARGET_CONFIG_H
 #define BMS_TARGET_CONFIG_H
 
 #define BMS_TARGET_NAME \"{cfg['name']}\"
-#define BMS_TARGET_MCU_NAME \"{cfg['mcu']}\"
-#define BMS_TARGET_AFE_NAME \"{cfg['afe']}\"
-#define BMS_TARGET_MCU_ID {MCU_IDS[cfg['mcu']]}U
-#define BMS_TARGET_PRODUCT_ID {int(cfg['product_id'])}UL
-#define BMS_TARGET_CELL_COUNT {int(cfg['cell_count'])}U
-#define BMS_TARGET_PORT_TOPOLOGY {TOPOLOGY_IDS[cfg['port_topology']]}U
-#define BMS_TARGET_BOOT_START 0x{boot_start:08X}UL
-#define BMS_TARGET_BOOT_SIZE {boot_size}UL
-#define BMS_TARGET_APP_START 0x{app_start:08X}UL
-#define BMS_TARGET_APP_SIZE {app_size}UL
-#define BMS_TARGET_APP_END 0x{app_start + app_size:08X}UL
-#define BMS_TARGET_METADATA_START 0x{meta_start:08X}UL
-#define BMS_TARGET_METADATA_SIZE {meta_size}UL
-#define BMS_TARGET_METADATA_A 0x{meta_start:08X}UL
-#define BMS_TARGET_METADATA_B 0x{meta_start + 1024:08X}UL
-#define BMS_TARGET_FLASH_END 0x{meta_start + meta_size:08X}UL
-#define BMS_TARGET_RAM_START 0x{ram_start:08X}UL
-#define BMS_TARGET_RAM_SIZE {ram_size}UL
-#define BMS_TARGET_RAM_END 0x{ram_start + ram_size:08X}UL
-#define BMS_TARGET_VECTOR_RESERVED {VECTOR_RESERVED[cfg['mcu_family']]}UL
+#define BMS_TARGET_MCU_NAME \"{mcu['part']}\"
+#define BMS_TARGET_MCU_ID {int(mcu['id'])}U
+#define BMS_TARGET_MCU_FAMILY \"{mcu['family']}\"
+#define BMS_TARGET_AFE_NAME \"{afe['name']}\"
+#define BMS_TARGET_BOARD_NAME \"{board['name']}\"
+#define BMS_TARGET_PRODUCT_NAME \"{product['name']}\"
+#define BMS_TARGET_PRODUCT_ID {int(product['product_id'])}UL
+#define BMS_TARGET_CELL_COUNT {int(product['cell_count'])}U
+#define BMS_TARGET_PORT_TOPOLOGY {TOPOLOGY_IDS[board['port_topology']]}U
+#define BMS_TARGET_FLASH_PAGE_SIZE {page_size}UL
+#define BMS_TARGET_BOOT_START 0x{flash['boot_start']:08X}UL
+#define BMS_TARGET_BOOT_SIZE {flash['boot_size']}UL
+#define BMS_TARGET_APP_START 0x{flash['app_start']:08X}UL
+#define BMS_TARGET_APP_SIZE {flash['app_size']}UL
+#define BMS_TARGET_APP_END 0x{flash['app_end']:08X}UL
+#define BMS_TARGET_METADATA_START 0x{flash['metadata_start']:08X}UL
+#define BMS_TARGET_METADATA_SIZE {flash['metadata_size']}UL
+#define BMS_TARGET_METADATA_A 0x{flash['metadata_start']:08X}UL
+#define BMS_TARGET_METADATA_B 0x{flash['metadata_start'] + page_size:08X}UL
+#define BMS_TARGET_FLASH_END 0x{flash['end']:08X}UL
+#define BMS_TARGET_RAM_START 0x{ram['start']:08X}UL
+#define BMS_TARGET_RAM_SIZE {ram['size']}UL
+#define BMS_TARGET_RAM_END 0x{ram['end']:08X}UL
+#define BMS_TARGET_VECTOR_RESERVED {ram['vector_reserved']}UL
+#define BMS_TARGET_CLOCK_HZ {as_int(mcu['clock_hz'])}UL
 
 #endif
 """
     out.write_text(text, encoding="utf-8")
 
 
-def linker_text(cfg: dict, app: bool) -> str:
-    f, r = cfg["flash"], cfg["ram"]
-    flash_start = as_int(f["app_start"] if app else f["boot_start"])
-    flash_size = as_int(f["app_size"] if app else f["boot_size"])
-    ram_start, ram_size = as_int(r["start"]), as_int(r["size"])
-    reserved = VECTOR_RESERVED[cfg["mcu_family"]] if app else 0
-    usable_ram_start = ram_start + reserved
-    usable_ram_size = ram_size - reserved
-    return f"""/* GENERATED from config/targets/{cfg['name']}.json - do not hand edit. */
+def write_cmake(cfg: dict[str, Any], out: Path) -> None:
+    mcu = cfg["mcu"]
+    lines = [
+        "# GENERATED - do not hand edit.",
+        f'set(BMS_GENERATED_TARGET "{cfg["name"]}")',
+        f'set(BMS_GENERATED_MCU_FAMILY "{mcu["family"]}")',
+        f'set(BMS_GENERATED_MCU_PART "{mcu["part"]}")',
+        f'set(BMS_GENERATED_MCU_ID "{int(mcu["id"])}")',
+        f'set(BMS_GENERATED_MCU_CORE "{mcu["core"]}")',
+        f'set(BMS_GENERATED_MCU_DEFINE "{mcu["device_define"]}")',
+        f'set(BMS_GENERATED_MCU_VENDOR "{mcu["vendor"]}")',
+        f'set(BMS_GENERATED_FLASH_PAGE_SIZE "{cfg["flash"]["page_size"]}")',
+        f'set(BMS_GENERATED_VECTOR_MODE "{mcu["vector"]["mode"]}")',
+        f'set(BMS_GENERATED_CLOCK_HZ "{as_int(mcu["clock_hz"])}")',
+        f'set(BMS_GENERATED_KEIL_DEVICE "{mcu["keil_device"]}")',
+        f'set(BMS_GENERATED_KEIL_PACK "{mcu["keil_pack"]}")',
+        f'set(BMS_GENERATED_AFE "{cfg["afe"]["name"]}")',
+        f'set(BMS_GENERATED_BOARD "{cfg["board"]["name"]}")',
+        f'set(BMS_GENERATED_PRODUCT "{cfg["product"]["name"]}")',
+        "",
+    ]
+    out.write_text("\n".join(lines), encoding="utf-8")
+
+
+def linker_text(cfg: dict[str, Any], app: bool) -> str:
+    flash = cfg["flash"]
+    ram = cfg["ram"]
+    flash_start = flash["app_start"] if app else flash["boot_start"]
+    flash_size = flash["app_size"] if app else flash["boot_size"]
+    reserved = ram["vector_reserved"] if app else 0
+    usable_ram_start = ram["start"] + reserved
+    usable_ram_size = ram["size"] - reserved
+    return f"""/* GENERATED from layered target config {cfg['name']} - do not hand edit. */
 MEMORY
 {{
   FLASH (rx) : ORIGIN = 0x{flash_start:08X}, LENGTH = {flash_size}
   RAM (xrw)  : ORIGIN = 0x{usable_ram_start:08X}, LENGTH = {usable_ram_size}
 }}
-_estack = 0x{ram_start + ram_size:08X};
+_estack = 0x{ram['end']:08X};
 SECTIONS
 {{
   .isr_vector : {{ KEEP(*(.isr_vector)) }} > FLASH
@@ -113,26 +250,49 @@ SECTIONS
 """
 
 
+def write_summary(cfg: dict[str, Any], out: Path) -> None:
+    summary = {
+        "name": cfg["name"],
+        "refs": cfg["refs"],
+        "resolved": {
+            "mcu": cfg["mcu"]["part"],
+            "mcu_id": cfg["mcu"]["id"],
+            "mcu_family": cfg["mcu"]["family"],
+            "afe": cfg["afe"]["name"],
+            "board": cfg["board"]["name"],
+            "product": cfg["product"]["name"],
+            "product_id": cfg["product"]["product_id"],
+            "cell_count": cfg["product"]["cell_count"],
+            "port_topology": cfg["board"]["port_topology"],
+            "flash": cfg["flash"],
+            "ram": cfg["ram"],
+        },
+    }
+    out.write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
+
+
+def generate(name: str, out: Path) -> dict[str, Any]:
+    cfg = load_target(name)
+    out.mkdir(parents=True, exist_ok=True)
+    write_header(cfg, out / "bms_target_config.h")
+    write_cmake(cfg, out / "target.cmake")
+    (out / "boot.ld").write_text(linker_text(cfg, False), encoding="utf-8")
+    (out / "app.ld").write_text(linker_text(cfg, True), encoding="utf-8")
+    write_summary(cfg, out / "target-summary.json")
+    return cfg
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--target", required=True)
     parser.add_argument("--out", required=True)
     args = parser.parse_args()
-    path = ROOT / "config" / "targets" / f"{args.target}.json"
-    cfg = json.loads(path.read_text(encoding="utf-8"))
-    validate(cfg)
     out = Path(args.out)
-    out.mkdir(parents=True, exist_ok=True)
-    write_header(cfg, out / "bms_target_config.h")
-    (out / "boot.ld").write_text(linker_text(cfg, False), encoding="utf-8")
-    (out / "app.ld").write_text(linker_text(cfg, True), encoding="utf-8")
-    summary = {
-        "name": cfg["name"], "mcu": cfg["mcu"], "mcu_family": cfg["mcu_family"], "afe": cfg["afe"],
-        "product_id": cfg["product_id"], "cell_count": cfg["cell_count"], "port_topology": cfg["port_topology"],
-        "vector_reserved": VECTOR_RESERVED[cfg["mcu_family"]]
-    }
-    (out / "target-summary.json").write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
-    print(f"generated target {cfg['name']} -> {out}")
+    cfg = generate(args.target, out)
+    print(
+        f"generated target {cfg['name']} -> {out} "
+        f"({cfg['mcu']['part']} + {cfg['afe']['name']} + {cfg['board']['name']} + {cfg['product']['name']})"
+    )
     return 0
 
 
