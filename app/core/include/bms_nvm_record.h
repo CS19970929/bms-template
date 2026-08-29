@@ -5,6 +5,7 @@
 #include <stdint.h>
 
 #define BMS_NVM_RECORD_MAGIC 0x424D534EUL
+#define BMS_NVM_RECORD_HEADER_SIZE 24U
 
 typedef struct {
     uint32_t magic;
@@ -31,6 +32,15 @@ bms_nvm_result_t bms_nvm_record_prepare(bms_nvm_record_header_t *header,
                                         uint32_t sequence,
                                         const uint8_t *payload,
                                         size_t payload_length);
+bms_nvm_result_t bms_nvm_record_encode_header(const bms_nvm_record_header_t *header,
+                                              uint8_t *encoded,
+                                              size_t encoded_size);
+bms_nvm_result_t bms_nvm_record_decode_header(const uint8_t *encoded,
+                                              size_t encoded_size,
+                                              bms_nvm_record_header_t *header);
+bms_nvm_result_t bms_nvm_record_validate_header(const bms_nvm_record_header_t *header,
+                                                uint16_t expected_schema_version,
+                                                uint32_t maximum_payload_length);
 bms_nvm_result_t bms_nvm_record_validate(const bms_nvm_record_header_t *header,
                                          uint16_t expected_schema_version,
                                          const uint8_t *payload,

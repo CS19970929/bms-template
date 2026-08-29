@@ -81,6 +81,7 @@ add_library(bms_app_core STATIC
     app/core/src/bms_state_machine.c
     app/core/src/bms_parameter.c
     app/core/src/bms_nvm_record.c
+    app/core/src/bms_nvm_store.c
     app/core/src/bms_soc.c
 )
 target_include_directories(bms_app_core PUBLIC app/core/include common/include)
@@ -118,6 +119,16 @@ if(BMS_BUILD_HOST_TESTS)
         bms_sanitizers
     )
     add_test(NAME bms_protection_manager_atomic_test COMMAND bms_protection_manager_atomic_test)
+
+    add_executable(bms_nvm_power_loss_test
+        tests/host/test_nvm_power_loss.c
+    )
+    target_link_libraries(bms_nvm_power_loss_test PRIVATE
+        bms_app_core
+        bms_warnings
+        bms_sanitizers
+    )
+    add_test(NAME bms_nvm_power_loss_test COMMAND bms_nvm_power_loss_test)
 endif()
 
 if(CMAKE_CROSSCOMPILING)
