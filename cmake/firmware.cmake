@@ -34,13 +34,14 @@ function(bms_add_image name kind main_file startup linker define)
     set_target_properties(${name} PROPERTIES SUFFIX ".elf")
 
     target_include_directories(${name} PRIVATE
-        ${BMS_MCU_INCLUDES}
+        ${BMS_OWNED_MCU_INCLUDES}
         "${CMAKE_SOURCE_DIR}/platform/common/include"
         "${CMAKE_SOURCE_DIR}/protocol/include"
         "${CMAKE_SOURCE_DIR}/common/include"
         "${CMAKE_SOURCE_DIR}/bootloader/core/include"
         "${CMAKE_SOURCE_DIR}/app/core/include"
     )
+    target_include_directories(${name} SYSTEM PRIVATE ${BMS_VENDOR_INCLUDES})
     target_compile_definitions(${name} PRIVATE ${define})
     target_compile_options(${name} PRIVATE
         ${BMS_CPU_FLAGS}
@@ -97,9 +98,11 @@ if(BMS_GENERATED_MCU_FAMILY STREQUAL "stm32f0")
         message(FATAL_ERROR "Run: python tools/bootstrap_vendor.py --family f0")
     endif()
 
-    set(BMS_MCU_INCLUDES
+    set(BMS_OWNED_MCU_INCLUDES
         "${CMAKE_SOURCE_DIR}/platform/stm32f0/include"
         "${BMS_GENERATED_DIR}"
+    )
+    set(BMS_VENDOR_INCLUDES
         "${V}/CMSIS"
         "${V}/StdPeriph/inc"
     )
@@ -113,7 +116,7 @@ if(BMS_GENERATED_MCU_FAMILY STREQUAL "stm32f0")
         "${V}/StdPeriph/src/stm32f0xx_syscfg.c"
         "${V}/StdPeriph/src/stm32f0xx_usart.c"
     )
-    target_include_directories(bms_vendor_mcu PUBLIC ${BMS_MCU_INCLUDES})
+    target_include_directories(bms_vendor_mcu SYSTEM PUBLIC ${BMS_VENDOR_INCLUDES})
     target_compile_definitions(bms_vendor_mcu PUBLIC ${BMS_GENERATED_MCU_DEFINE} USE_STDPERIPH_DRIVER)
     target_compile_options(bms_vendor_mcu PRIVATE
         ${BMS_CPU_FLAGS} -O2 -ffunction-sections -fdata-sections
@@ -124,10 +127,11 @@ if(BMS_GENERATED_MCU_FAMILY STREQUAL "stm32f0")
         platform/stm32f0/src/bms_platform_stm32f0.c
     )
     target_include_directories(bms_platform_mcu PUBLIC
-        ${BMS_MCU_INCLUDES}
+        ${BMS_OWNED_MCU_INCLUDES}
         "${CMAKE_SOURCE_DIR}/platform/common/include"
         "${CMAKE_SOURCE_DIR}/bootloader/core/include"
     )
+    target_include_directories(bms_platform_mcu SYSTEM PUBLIC ${BMS_VENDOR_INCLUDES})
     target_compile_definitions(bms_platform_mcu PUBLIC ${BMS_GENERATED_MCU_DEFINE} USE_STDPERIPH_DRIVER)
     target_compile_options(bms_platform_mcu PRIVATE
         ${BMS_CPU_FLAGS} -O2 -ffunction-sections -fdata-sections
@@ -144,9 +148,11 @@ elseif(BMS_GENERATED_MCU_FAMILY STREQUAL "stm32f1")
         message(FATAL_ERROR "Run: python tools/bootstrap_vendor.py --family f1")
     endif()
 
-    set(BMS_MCU_INCLUDES
+    set(BMS_OWNED_MCU_INCLUDES
         "${CMAKE_SOURCE_DIR}/platform/stm32f1/include"
         "${BMS_GENERATED_DIR}"
+    )
+    set(BMS_VENDOR_INCLUDES
         "${V}/CMSIS"
         "${V}/StdPeriph/inc"
     )
@@ -159,7 +165,7 @@ elseif(BMS_GENERATED_MCU_FAMILY STREQUAL "stm32f1")
         "${V}/StdPeriph/src/stm32f10x_rcc.c"
         "${V}/StdPeriph/src/stm32f10x_usart.c"
     )
-    target_include_directories(bms_vendor_mcu PUBLIC ${BMS_MCU_INCLUDES})
+    target_include_directories(bms_vendor_mcu SYSTEM PUBLIC ${BMS_VENDOR_INCLUDES})
     target_compile_definitions(bms_vendor_mcu PUBLIC ${BMS_GENERATED_MCU_DEFINE} USE_STDPERIPH_DRIVER)
     target_compile_options(bms_vendor_mcu PRIVATE
         ${BMS_CPU_FLAGS} -O2 -ffunction-sections -fdata-sections
@@ -170,10 +176,11 @@ elseif(BMS_GENERATED_MCU_FAMILY STREQUAL "stm32f1")
         platform/stm32f1/src/bms_platform_stm32f1.c
     )
     target_include_directories(bms_platform_mcu PUBLIC
-        ${BMS_MCU_INCLUDES}
+        ${BMS_OWNED_MCU_INCLUDES}
         "${CMAKE_SOURCE_DIR}/platform/common/include"
         "${CMAKE_SOURCE_DIR}/bootloader/core/include"
     )
+    target_include_directories(bms_platform_mcu SYSTEM PUBLIC ${BMS_VENDOR_INCLUDES})
     target_compile_definitions(bms_platform_mcu PUBLIC ${BMS_GENERATED_MCU_DEFINE} USE_STDPERIPH_DRIVER)
     target_compile_options(bms_platform_mcu PRIVATE
         ${BMS_CPU_FLAGS} -O2 -ffunction-sections -fdata-sections
