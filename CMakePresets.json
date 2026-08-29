@@ -1,0 +1,49 @@
+{
+  "version": 6,
+  "configurePresets": [
+    {
+      "name": "host-debug",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/host-debug",
+      "cacheVariables": {"CMAKE_BUILD_TYPE": "Debug", "BMS_BUILD_HOST_TESTS": "ON"}
+    },
+    {
+      "name": "host-o2",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/host-o2",
+      "cacheVariables": {"CMAKE_BUILD_TYPE": "Release", "CMAKE_C_FLAGS_RELEASE": "-O2 -DNDEBUG", "BMS_BUILD_HOST_TESTS": "ON"}
+    },
+    {
+      "name": "host-sanitize",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/host-sanitize",
+      "cacheVariables": {"CMAKE_BUILD_TYPE": "Debug", "BMS_BUILD_HOST_TESTS": "ON", "BMS_ENABLE_SANITIZERS": "ON"}
+    },
+    {
+      "name": "f030",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/f030",
+      "toolchainFile": "${sourceDir}/cmake/toolchains/arm-none-eabi.cmake",
+      "cacheVariables": {"CMAKE_BUILD_TYPE": "Release", "BMS_BUILD_HOST_TESTS": "OFF", "BMS_TARGET": "stm32f030c8_mock"}
+    },
+    {
+      "name": "f103",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/f103",
+      "toolchainFile": "${sourceDir}/cmake/toolchains/arm-none-eabi.cmake",
+      "cacheVariables": {"CMAKE_BUILD_TYPE": "Release", "BMS_BUILD_HOST_TESTS": "OFF", "BMS_TARGET": "stm32f103c8_mock"}
+    }
+  ],
+  "buildPresets": [
+    {"name": "host-debug", "configurePreset": "host-debug"},
+    {"name": "host-o2", "configurePreset": "host-o2"},
+    {"name": "host-sanitize", "configurePreset": "host-sanitize"},
+    {"name": "f030", "configurePreset": "f030"},
+    {"name": "f103", "configurePreset": "f103"}
+  ],
+  "testPresets": [
+    {"name": "host-debug", "configurePreset": "host-debug", "output": {"outputOnFailure": true}},
+    {"name": "host-o2", "configurePreset": "host-o2", "output": {"outputOnFailure": true}},
+    {"name": "host-sanitize", "configurePreset": "host-sanitize", "output": {"outputOnFailure": true}}
+  ]
+}

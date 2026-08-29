@@ -1,0 +1,7 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {"label": "BMS: quality gate", "type": "shell", "command": "python", "args": ["tools/check.py"], "group": "build", "problemMatcher": []},
+    {"label": "BMS: host debug", "type": "shell", "command": "cmake", "args": ["--build", "--preset", "host-debug"], "group": "build", "problemMatcher": ["$gcc"]}
+  ]
+}
