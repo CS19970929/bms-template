@@ -52,7 +52,7 @@ jobs:
             Get-Content $log
             if ($code -ne 0) { throw "Keil build failed for $name, exit=$code" }
             if (Select-String -Path $log -Pattern "0 Error\(s\)" -Quiet) {
-              Write-Host "$name: ARMCC5 build passed"
+              Write-Host "${name}: ARMCC5 build passed"
             } else {
               throw "Keil log does not contain zero-error result for $name"
             }
