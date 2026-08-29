@@ -2,14 +2,12 @@
 
 static int severity_valid(bms_event_severity_t severity)
 {
-    return ((severity >= BMS_EVENT_SEVERITY_INFO) &&
-            (severity <= BMS_EVENT_SEVERITY_FAULT)) ? 1 : 0;
+    return (severity <= BMS_EVENT_SEVERITY_FAULT) ? 1 : 0;
 }
 
 static int source_valid(bms_event_source_t source)
 {
-    return ((source >= BMS_EVENT_SOURCE_BOOT) &&
-            (source <= BMS_EVENT_SOURCE_IAP)) ? 1 : 0;
+    return (source <= BMS_EVENT_SOURCE_IAP) ? 1 : 0;
 }
 
 bms_event_log_result_t bms_event_log_init(bms_event_log_t *log,
