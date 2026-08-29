@@ -1,11 +1,15 @@
 name: quality-gate
+
 on:
   pull_request:
   push:
     branches: [main]
   workflow_dispatch:
+  workflow_call:
+
 permissions:
   contents: read
+
 jobs:
   host-quality:
     runs-on: ubuntu-latest
