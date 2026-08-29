@@ -1,7 +1,10 @@
 {
   "version": "2.0.0",
   "tasks": [
-    {"label": "BMS: quality gate", "type": "shell", "command": "python", "args": ["tools/check.py"], "group": "build", "problemMatcher": []},
-    {"label": "BMS: host debug", "type": "shell", "command": "cmake", "args": ["--build", "--preset", "host-debug"], "group": "build", "problemMatcher": ["$gcc"]}
+    {"label":"BMS: quality gate","type":"shell","command":"python","args":["tools/check.py"],"group":"build","problemMatcher":[]},
+    {"label":"BMS: bootstrap STM32 vendor","type":"shell","command":"python","args":["tools/bootstrap_vendor.py"],"problemMatcher":[]},
+    {"label":"BMS: configure F030","type":"shell","command":"cmake","args":["--preset","f030"],"group":"build","problemMatcher":[]},
+    {"label":"BMS: build F030 APP+IAP","type":"shell","command":"cmake","args":["--build","--preset","f030"],"group":"build","problemMatcher":["$gcc"]},
+    {"label":"BMS: generate Keil F030","type":"shell","command":"python","args":["tools/generate_keil.py","--target","stm32f030c8_mock"],"problemMatcher":[]}
   ]
 }

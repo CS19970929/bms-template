@@ -2,30 +2,29 @@
 
 Clean-room reusable BMS platform for recovery IAP + BMS APP + serial/BLE PC tooling.
 
-## Development model
+## Daily development
 
-VSCode + CMake + Ninja + GCC are the normal development path. Keil projects are retained only as a convenient STM32 debug view; Keil is not the source of truth for source lists, memory layout or release policy.
-
-Current production-core modules already build on the host:
-
-- CRC32;
-- transport-independent protocol frame codec;
-- boot image target/CRC/vector validation;
-- redundant boot metadata selection;
-- boot/recovery policy;
-- generic protection timing/hysteresis engine;
-- AFE interface + mock implementation.
-
-Run:
+VSCode + CMake + Ninja + GCC are the normal development path. Keil is a generated debug view only.
 
 ```bash
 python tools/check.py
+python tools/bootstrap_vendor.py
+cmake --preset f030
+cmake --build --preset f030
 ```
 
-This performs O0/debug, O2/release, sanitizer tests (non-Windows) and Cppcheck when installed.
+Generate Keil debug projects only when needed:
 
-## Target model
+```bash
+python tools/generate_keil.py --target stm32f030c8_mock
+```
 
-Targets are composed from MCU + board + AFE + product policy. Initial 64 KiB reference targets are STM32F030C8 and STM32F103C8. Hardware startup/StdPeriph ports and Keil debug projects are intentionally isolated from the reusable core and are added from exact vendor-library baselines, not copied application architecture.
+## Current architecture
 
-See `docs/ARCHITECTURE.md`, `docs/BOOTLOADER.md`, and `AGENTS.md`.
+Portable production core already includes CRC32, transport-independent frame codec, boot image target/CRC/vector validation, redundant metadata, recovery policy, IAP session/service, generic protection timing/hysteresis and AFE abstraction. Host tests run the same C sources at Debug/O0, Release/O2 and ASan/UBSan.
+
+The F030 reference target uses a pinned/verified STM32F0xx StdPeriph V1.5.0 subset, a clean platform startup/clock/flash/UART/watchdog port and a generated 64 KiB memory layout. Product target JSON generates firmware constants and linker scripts.
+
+The .NET 8 PC tool uses a common `BmsClient` over `IBmsTransport`; serial and Windows BLE therefore share one protocol/client implementation.
+
+See `docs/ARCHITECTURE.md`, `docs/BOOTLOADER.md`, `docs/STM32F0_PORT.md`, `docs/UPPER_COMPUTER.md` and `AGENTS.md`.
