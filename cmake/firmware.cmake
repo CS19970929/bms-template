@@ -13,9 +13,19 @@ if(NOT BMS_TARGET_GEN_RESULT EQUAL 0)
     message(FATAL_ERROR "target generation failed for ${BMS_TARGET}")
 endif()
 
+include("${BMS_GENERATED_DIR}/target.cmake")
+
+if(BMS_GENERATED_MCU_CORE STREQUAL "cortex-m0")
+    set(BMS_CPU_FLAGS -mcpu=cortex-m0 -mthumb)
+elseif(BMS_GENERATED_MCU_CORE STREQUAL "cortex-m3")
+    set(BMS_CPU_FLAGS -mcpu=cortex-m3 -mthumb)
+else()
+    message(FATAL_ERROR "Unsupported MCU core: ${BMS_GENERATED_MCU_CORE}")
+endif()
+
 function(bms_apply_core_cpu)
     foreach(t bms_base bms_boot_core bms_app_core)
-        target_compile_options(${t} PRIVATE ${ARGN} -ffunction-sections -fdata-sections)
+        target_compile_options(${t} PRIVATE ${BMS_CPU_FLAGS} -ffunction-sections -fdata-sections)
     endforeach()
 endfunction()
 
@@ -76,20 +86,23 @@ function(bms_generate_keil_source_manifests)
     )
 endfunction()
 
-if(BMS_TARGET STREQUAL "stm32f030c8_mock")
-    set(V "${CMAKE_SOURCE_DIR}/vendor/st/stm32f0_stdperiph_v1.5.0")
+bms_apply_core_cpu()
+
+if(BMS_GENERATED_MCU_FAMILY STREQUAL "stm32f0")
+    if(NOT BMS_GENERATED_MCU_VENDOR STREQUAL "stm32f0_stdperiph_v1.5.0")
+        message(FATAL_ERROR "Unexpected STM32F0 vendor profile: ${BMS_GENERATED_MCU_VENDOR}")
+    endif()
+    set(V "${CMAKE_SOURCE_DIR}/vendor/st/${BMS_GENERATED_MCU_VENDOR}")
     if(NOT EXISTS "${V}/CMSIS/stm32f0xx.h")
         message(FATAL_ERROR "Run: python tools/bootstrap_vendor.py --family f0")
     endif()
 
-    set(BMS_CPU_FLAGS -mcpu=cortex-m0 -mthumb)
     set(BMS_MCU_INCLUDES
         "${CMAKE_SOURCE_DIR}/platform/stm32f0/include"
         "${BMS_GENERATED_DIR}"
         "${V}/CMSIS"
         "${V}/StdPeriph/inc"
     )
-    bms_apply_core_cpu(${BMS_CPU_FLAGS})
 
     add_library(bms_vendor_mcu STATIC
         "${V}/StdPeriph/src/stm32f0xx_flash.c"
@@ -101,7 +114,7 @@ if(BMS_TARGET STREQUAL "stm32f030c8_mock")
         "${V}/StdPeriph/src/stm32f0xx_usart.c"
     )
     target_include_directories(bms_vendor_mcu PUBLIC ${BMS_MCU_INCLUDES})
-    target_compile_definitions(bms_vendor_mcu PUBLIC STM32F030 USE_STDPERIPH_DRIVER)
+    target_compile_definitions(bms_vendor_mcu PUBLIC ${BMS_GENERATED_MCU_DEFINE} USE_STDPERIPH_DRIVER)
     target_compile_options(bms_vendor_mcu PRIVATE
         ${BMS_CPU_FLAGS} -O2 -ffunction-sections -fdata-sections
     )
@@ -115,28 +128,28 @@ if(BMS_TARGET STREQUAL "stm32f030c8_mock")
         "${CMAKE_SOURCE_DIR}/platform/common/include"
         "${CMAKE_SOURCE_DIR}/bootloader/core/include"
     )
-    target_compile_definitions(bms_platform_mcu PUBLIC STM32F030 USE_STDPERIPH_DRIVER)
+    target_compile_definitions(bms_platform_mcu PUBLIC ${BMS_GENERATED_MCU_DEFINE} USE_STDPERIPH_DRIVER)
     target_compile_options(bms_platform_mcu PRIVATE
         ${BMS_CPU_FLAGS} -O2 -ffunction-sections -fdata-sections
     )
     target_link_libraries(bms_platform_mcu PUBLIC bms_vendor_mcu)
-
     set(BMS_STARTUP "${CMAKE_SOURCE_DIR}/platform/stm32f0/startup/startup_stm32f030_gcc.c")
 
-elseif(BMS_TARGET STREQUAL "stm32f103c8_mock")
-    set(V "${CMAKE_SOURCE_DIR}/vendor/st/stm32f10x_stdperiph_v3.5.0")
+elseif(BMS_GENERATED_MCU_FAMILY STREQUAL "stm32f1")
+    if(NOT BMS_GENERATED_MCU_VENDOR STREQUAL "stm32f10x_stdperiph_v3.5.0")
+        message(FATAL_ERROR "Unexpected STM32F1 vendor profile: ${BMS_GENERATED_MCU_VENDOR}")
+    endif()
+    set(V "${CMAKE_SOURCE_DIR}/vendor/st/${BMS_GENERATED_MCU_VENDOR}")
     if(NOT EXISTS "${V}/CMSIS/stm32f10x.h")
         message(FATAL_ERROR "Run: python tools/bootstrap_vendor.py --family f1")
     endif()
 
-    set(BMS_CPU_FLAGS -mcpu=cortex-m3 -mthumb)
     set(BMS_MCU_INCLUDES
         "${CMAKE_SOURCE_DIR}/platform/stm32f1/include"
         "${BMS_GENERATED_DIR}"
         "${V}/CMSIS"
         "${V}/StdPeriph/inc"
     )
-    bms_apply_core_cpu(${BMS_CPU_FLAGS})
 
     add_library(bms_vendor_mcu STATIC
         "${V}/StdPeriph/src/stm32f10x_flash.c"
@@ -147,7 +160,7 @@ elseif(BMS_TARGET STREQUAL "stm32f103c8_mock")
         "${V}/StdPeriph/src/stm32f10x_usart.c"
     )
     target_include_directories(bms_vendor_mcu PUBLIC ${BMS_MCU_INCLUDES})
-    target_compile_definitions(bms_vendor_mcu PUBLIC STM32F10X_MD USE_STDPERIPH_DRIVER)
+    target_compile_definitions(bms_vendor_mcu PUBLIC ${BMS_GENERATED_MCU_DEFINE} USE_STDPERIPH_DRIVER)
     target_compile_options(bms_vendor_mcu PRIVATE
         ${BMS_CPU_FLAGS} -O2 -ffunction-sections -fdata-sections
     )
@@ -161,16 +174,15 @@ elseif(BMS_TARGET STREQUAL "stm32f103c8_mock")
         "${CMAKE_SOURCE_DIR}/platform/common/include"
         "${CMAKE_SOURCE_DIR}/bootloader/core/include"
     )
-    target_compile_definitions(bms_platform_mcu PUBLIC STM32F10X_MD USE_STDPERIPH_DRIVER)
+    target_compile_definitions(bms_platform_mcu PUBLIC ${BMS_GENERATED_MCU_DEFINE} USE_STDPERIPH_DRIVER)
     target_compile_options(bms_platform_mcu PRIVATE
         ${BMS_CPU_FLAGS} -O2 -ffunction-sections -fdata-sections
     )
     target_link_libraries(bms_platform_mcu PUBLIC bms_vendor_mcu)
-
     set(BMS_STARTUP "${CMAKE_SOURCE_DIR}/platform/stm32f1/startup/startup_stm32f103_gcc.c")
 
 else()
-    message(FATAL_ERROR "Unsupported BMS_TARGET=${BMS_TARGET}")
+    message(FATAL_ERROR "Unsupported MCU family: ${BMS_GENERATED_MCU_FAMILY}")
 endif()
 
 bms_add_image(
