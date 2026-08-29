@@ -139,7 +139,6 @@ elseif(BMS_TARGET STREQUAL "stm32f103c8_mock")
     bms_apply_core_cpu(${BMS_CPU_FLAGS})
 
     add_library(bms_vendor_mcu STATIC
-        "${V}/CMSIS/core_cm3.c"
         "${V}/StdPeriph/src/stm32f10x_flash.c"
         "${V}/StdPeriph/src/stm32f10x_gpio.c"
         "${V}/StdPeriph/src/stm32f10x_iwdg.c"
