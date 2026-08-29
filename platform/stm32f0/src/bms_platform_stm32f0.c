@@ -1,8 +1,10 @@
 #include "bms_platform_stm32f0.h"
 #include "stm32f0xx.h"
+#include "system_stm32f0xx.h"
 #include <string.h>
 
 #define BMS_UART_POLL_LIMIT 1000000UL
+#define BMS_CLOCK_POLL_LIMIT 1000000UL
 #define BMS_F030_FLASH_PAGE_SIZE 1024U
 
 static int range_in_app(uint32_t address, size_t length)
@@ -24,9 +26,10 @@ static int erase_page(uint32_t address)
 static int program_bytes(uint32_t address, const uint8_t *data, size_t length)
 {
     size_t i;
-    if ((data == NULL) || ((address & 1U) != 0U) || ((length & 1U) != 0U)) return -1;
+    if ((data == NULL) || ((address & 1U) != 0U)) return -1;
     for (i = 0U; i < length; i += 2U) {
-        const uint16_t half = (uint16_t)data[i] | ((uint16_t)data[i + 1U] << 8U);
+        const uint8_t hi = ((i + 1U) < length) ? data[i + 1U] : 0xFFU;
+        const uint16_t half = (uint16_t)data[i] | ((uint16_t)hi << 8U);
         if (FLASH_ProgramHalfWord(address + (uint32_t)i, half) != FLASH_COMPLETE) return -1;
         if (*(const volatile uint16_t *)(uintptr_t)(address + (uint32_t)i) != half) return -1;
     }
@@ -35,6 +38,19 @@ static int program_bytes(uint32_t address, const uint8_t *data, size_t length)
 
 void bms_platform_clock_init(void)
 {
+    uint32_t polls;
+    FLASH_SetLatency(FLASH_Latency_1);
+    RCC_PLLCmd(DISABLE);
+    RCC_PLLConfig(RCC_PLLSource_HSI_Div2, RCC_PLLMul_12);
+    RCC_PLLCmd(ENABLE);
+    polls = BMS_CLOCK_POLL_LIMIT;
+    while ((RCC_GetFlagStatus(RCC_FLAG_PLLRDY) == RESET) && (polls != 0U)) --polls;
+    if (polls != 0U) {
+        RCC_SYSCLKConfig(RCC_SYSCLKSource_PLLCLK);
+        polls = BMS_CLOCK_POLL_LIMIT;
+        while ((RCC_GetSYSCLKSource() != 0x08U) && (polls != 0U)) --polls;
+    }
+    SystemCoreClockUpdate();
     RCC_AHBPeriphClockCmd(RCC_AHBPeriph_GPIOA, ENABLE);
     RCC_APB2PeriphClockCmd(RCC_APB2Periph_SYSCFG | RCC_APB2Periph_USART1, ENABLE);
 }
@@ -137,19 +153,17 @@ int bms_platform_metadata_store(void *ctx, bms_boot_meta_state_t state, const bm
     const bms_boot_meta_record_t *current;
     bms_boot_meta_record_t next;
     uint32_t destination;
-    size_t write_length;
     int result;
     (void)ctx;
 
     current = bms_boot_metadata_select(a, b);
     destination = (current == a) ? BMS_F030_META_B : BMS_F030_META_A;
     bms_boot_metadata_prepare_next(&next, current, state, image);
-    write_length = (sizeof(next) + 1U) & ~(size_t)1U;
 
     FLASH_Unlock();
     FLASH_ClearFlag(FLASH_FLAG_EOP | FLASH_FLAG_PGERR | FLASH_FLAG_WRPERR);
     result = erase_page(destination);
-    if (result == 0) result = program_bytes(destination, (const uint8_t *)&next, write_length);
+    if (result == 0) result = program_bytes(destination, (const uint8_t *)&next, sizeof(next));
     FLASH_Lock();
     if (result != 0) return -1;
     return bms_boot_metadata_is_valid((const bms_boot_meta_record_t *)(uintptr_t)destination) ? 0 : -1;

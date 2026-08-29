@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Fetch only whitelisted ST vendor files from a pinned reference commit.
+"""Fetch only whitelisted ST CMSIS/StdPeriph files from pinned reference commits.
 
-The reference repository is used as a content source for ST CMSIS/StdPeriph files only.
-No application/board/business source is imported.
+Reference repositories are content sources only. Files known to contain project-specific
+modifications (for example the old system_stm32f0xx.c) are deliberately not imported.
 """
 from __future__ import annotations
 
@@ -22,7 +22,6 @@ FILES = {
     "CMSIS/core_cmFunc.h": ("Code/Drivers/core_cmFunc.h", "0a18fafc301e003d348edf5cae39481d8e5fe7c3"),
     "CMSIS/core_cmInstr.h": ("Code/Drivers/core_cmInstr.h", "d213f0eed7ca9335e883a5b55b6de14ba9507f1e"),
     "CMSIS/stm32f0xx.h": ("Code/Drivers/stm32f0xx.h", "3dfe2f51d205bc480b7062323eb35912b19ab5fe"),
-    "CMSIS/system_stm32f0xx.c": ("Code/Drivers/system_stm32f0xx.c", "4fce0ddfc1d24b82b5e4ffd7770f2edb3662e8fd"),
     "CMSIS/system_stm32f0xx.h": ("Code/Drivers/system_stm32f0xx.h", "12027a8b223973ed8d957e7ee01be2a0a719200f"),
     "StdPeriph/inc/stm32f0xx_flash.h": ("Code/STM32F0xx_StdPeriph_Driver/inc/stm32f0xx_flash.h", "236cdde64bf07090b0da4057a8efb8c585ddbd48"),
     "StdPeriph/inc/stm32f0xx_gpio.h": ("Code/STM32F0xx_StdPeriph_Driver/inc/stm32f0xx_gpio.h", "867e4d8fe5564127b3ea703e0f81d5211d27785f"),
@@ -42,8 +41,7 @@ FILES = {
 
 
 def git_blob_sha(data: bytes) -> str:
-    header = f"blob {len(data)}\0".encode("ascii")
-    return hashlib.sha1(header + data).hexdigest()
+    return hashlib.sha1(f"blob {len(data)}\0".encode("ascii") + data).hexdigest()
 
 
 def main() -> int:
@@ -52,9 +50,8 @@ def main() -> int:
         if dst.exists() and git_blob_sha(dst.read_bytes()) == expected:
             print(f"[ok] {rel}")
             continue
-        url = BASE + source
         print(f"[get] {source}")
-        with urllib.request.urlopen(url, timeout=30) as response:
+        with urllib.request.urlopen(BASE + source, timeout=30) as response:
             data = response.read()
         actual = git_blob_sha(data)
         if actual != expected:
