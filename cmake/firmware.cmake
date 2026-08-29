@@ -126,6 +126,7 @@ if(BMS_GENERATED_MCU_FAMILY STREQUAL "stm32f0")
     add_library(bms_platform_mcu STATIC
         platform/stm32f0/src/system_stm32f030_clean.c
         platform/stm32f0/src/bms_platform_stm32f0.c
+        platform/stm32f0/src/bms_nvm_stm32f0.c
     )
     target_include_directories(bms_platform_mcu PUBLIC
         ${BMS_OWNED_MCU_INCLUDES}
@@ -176,6 +177,7 @@ elseif(BMS_GENERATED_MCU_FAMILY STREQUAL "stm32f1")
     add_library(bms_platform_mcu STATIC
         platform/stm32f1/src/system_stm32f103_clean.c
         platform/stm32f1/src/bms_platform_stm32f1.c
+        platform/stm32f1/src/bms_nvm_stm32f1.c
     )
     target_include_directories(bms_platform_mcu PUBLIC
         ${BMS_OWNED_MCU_INCLUDES}

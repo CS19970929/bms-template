@@ -60,6 +60,8 @@ RULES: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("tools/generate_parameters.py", ("docs/PARAMETERS.md", "docs/engineering/DOCUMENTATION_POLICY.md")),
     ("tools/generate_protections.py", ("docs/PROTECTION.md", "docs/engineering/DOCUMENTATION_POLICY.md")),
     ("cmake/firmware.cmake", ("docs/FLASH_LAYOUT.md", "docs/CLOUD_CI.md")),
+    ("platform/stm32f0/src/bms_nvm", ("docs/NVM.md", "docs/STM32F0_PORT.md")),
+    ("platform/stm32f1/src/bms_nvm", ("docs/NVM.md", "docs/STM32F1_PORT.md")),
     ("platform/stm32f0/", ("docs/STM32F0_PORT.md",)),
     ("platform/stm32f1/", ("docs/STM32F1_PORT.md",)),
     ("pc/", ("docs/UPPER_COMPUTER.md",)),

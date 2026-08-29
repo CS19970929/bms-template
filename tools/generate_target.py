@@ -48,23 +48,30 @@ def load_target(name: str) -> dict[str, Any]:
     flash_size = as_int(mcu["flash"]["size"])
     page_size = as_int(mcu["flash"]["page_size"])
     boot_size = as_int(product["firmware"]["boot_size"])
-    metadata_size = as_int(product["firmware"]["metadata_size"])
+    persistent_size = as_int(product["firmware"]["persistent_size"])
     flash_end = flash_start + flash_size
     boot_start = flash_start
     app_start = boot_start + boot_size
-    metadata_start = flash_end - metadata_size
-    app_size = metadata_start - app_start
+    persistent_start = flash_end - persistent_size
+    app_size = persistent_start - app_start
 
-    if boot_size <= 0 or metadata_size <= 0 or app_size <= 0:
+    if boot_size <= 0 or persistent_size <= 0 or app_size <= 0:
         raise ValueError("firmware flash regions must all be non-empty")
     if (boot_size % page_size) != 0:
         raise ValueError("product boot_size must align to MCU flash page_size")
-    if (metadata_size % page_size) != 0:
-        raise ValueError("product metadata_size must align to MCU flash page_size")
-    if metadata_size < (2 * page_size):
-        raise ValueError("metadata_size must provide at least two MCU flash pages")
-    if (app_start % page_size) != 0 or (metadata_start % page_size) != 0:
-        raise ValueError("derived APP/metadata regions must be page aligned")
+    if (persistent_size % page_size) != 0:
+        raise ValueError("product persistent_size must align to MCU flash page_size")
+    if persistent_size < (4 * page_size):
+        raise ValueError("persistent_size must provide at least four MCU flash pages")
+    if (app_start % page_size) != 0 or (persistent_start % page_size) != 0:
+        raise ValueError("derived APP/persistent regions must be page aligned")
+
+    metadata_a = persistent_start
+    metadata_b = persistent_start + page_size
+    nvm_a = flash_end - (2 * page_size)
+    nvm_b = flash_end - page_size
+    if (metadata_b + page_size) > nvm_a:
+        raise ValueError("persistent tail cannot separate Boot metadata and APP NVM slots")
 
     ram_start = as_int(mcu["ram"]["start"])
     ram_size = as_int(mcu["ram"]["size"])
@@ -93,9 +100,15 @@ def load_target(name: str) -> dict[str, Any]:
             "boot_size": boot_size,
             "app_start": app_start,
             "app_size": app_size,
-            "app_end": metadata_start,
-            "metadata_start": metadata_start,
-            "metadata_size": metadata_size,
+            "app_end": persistent_start,
+            "persistent_start": persistent_start,
+            "persistent_size": persistent_size,
+            "metadata_a": metadata_a,
+            "metadata_b": metadata_b,
+            "metadata_slot_size": page_size,
+            "nvm_a": nvm_a,
+            "nvm_b": nvm_b,
+            "nvm_slot_size": page_size,
         },
         "ram": {
             "start": ram_start,
@@ -150,8 +163,11 @@ def validate_profiles(
         )
     if board.get("port_topology") not in TOPOLOGY_IDS:
         raise ValueError(f"unsupported board port_topology: {board.get('port_topology')}")
-    if "firmware" not in product:
+    firmware = product.get("firmware")
+    if not isinstance(firmware, dict):
         raise ValueError("product firmware layout policy is missing")
+    if "boot_size" not in firmware or "persistent_size" not in firmware:
+        raise ValueError("product firmware policy requires boot_size and persistent_size")
 
 
 def write_header(cfg: dict[str, Any], out: Path) -> None:
@@ -161,7 +177,6 @@ def write_header(cfg: dict[str, Any], out: Path) -> None:
     product = cfg["product"]
     flash = cfg["flash"]
     ram = cfg["ram"]
-    page_size = flash["page_size"]
 
     text = f"""#ifndef BMS_TARGET_CONFIG_H
 #define BMS_TARGET_CONFIG_H
@@ -176,16 +191,20 @@ def write_header(cfg: dict[str, Any], out: Path) -> None:
 #define BMS_TARGET_PRODUCT_ID {int(product['product_id'])}UL
 #define BMS_TARGET_CELL_COUNT {int(product['cell_count'])}U
 #define BMS_TARGET_PORT_TOPOLOGY {TOPOLOGY_IDS[board['port_topology']]}U
-#define BMS_TARGET_FLASH_PAGE_SIZE {page_size}UL
+#define BMS_TARGET_FLASH_PAGE_SIZE {flash['page_size']}UL
 #define BMS_TARGET_BOOT_START 0x{flash['boot_start']:08X}UL
 #define BMS_TARGET_BOOT_SIZE {flash['boot_size']}UL
 #define BMS_TARGET_APP_START 0x{flash['app_start']:08X}UL
 #define BMS_TARGET_APP_SIZE {flash['app_size']}UL
 #define BMS_TARGET_APP_END 0x{flash['app_end']:08X}UL
-#define BMS_TARGET_METADATA_START 0x{flash['metadata_start']:08X}UL
-#define BMS_TARGET_METADATA_SIZE {flash['metadata_size']}UL
-#define BMS_TARGET_METADATA_A 0x{flash['metadata_start']:08X}UL
-#define BMS_TARGET_METADATA_B 0x{flash['metadata_start'] + page_size:08X}UL
+#define BMS_TARGET_PERSISTENT_START 0x{flash['persistent_start']:08X}UL
+#define BMS_TARGET_PERSISTENT_SIZE {flash['persistent_size']}UL
+#define BMS_TARGET_METADATA_A 0x{flash['metadata_a']:08X}UL
+#define BMS_TARGET_METADATA_B 0x{flash['metadata_b']:08X}UL
+#define BMS_TARGET_METADATA_SLOT_SIZE {flash['metadata_slot_size']}UL
+#define BMS_TARGET_NVM_A 0x{flash['nvm_a']:08X}UL
+#define BMS_TARGET_NVM_B 0x{flash['nvm_b']:08X}UL
+#define BMS_TARGET_NVM_SLOT_SIZE {flash['nvm_slot_size']}UL
 #define BMS_TARGET_FLASH_END 0x{flash['end']:08X}UL
 #define BMS_TARGET_RAM_START 0x{ram['start']:08X}UL
 #define BMS_TARGET_RAM_SIZE {ram['size']}UL

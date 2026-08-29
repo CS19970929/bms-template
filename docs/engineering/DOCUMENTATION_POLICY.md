@@ -13,7 +13,7 @@ Path -> required owner documentation:
 - `app/core/*protection*`, `*mos*`, `schema/protections.json`, protection generator/generated outputs -> `PROTECTION.md`.
 - state-machine files -> `STATE_MACHINE.md`.
 - parameter runtime files, `schema/parameters.json`, parameter generator/generated outputs -> `PARAMETERS.md`.
-- NVM/persistence files -> `NVM.md`.
+- NVM/persistence files -> `NVM.md`; STM32 physical NVM backends also update the family Port document.
 - event-log runtime/persistence files -> `EVENT_LOG.md`; persistence-backend changes also update `NVM.md` when storage invariants change.
 - SOC/SOH files -> `SOC.md`.
 - `config/**`, target generator/linker generation -> `CONFIGURATION.md` and `FLASH_LAYOUT.md` when memory geometry changes.
@@ -28,11 +28,11 @@ Purpose, boundaries/ownership, stable data/state model, invariants, failure beha
 
 ## Machine checks
 
-`tools/check_docs.py` verifies the required document set, repository links and PR change coupling. CI fetches PR history sufficiently to compare against the base SHA. Parameter and protection schema generators have independent deterministic stale-output checks, and dedicated Host tests compile the generated C headers. These checks may not be bypassed by warning suppression or test deletion.
+`tools/check_docs.py` verifies the required document set, repository links and PR change coupling. CI fetches PR history sufficiently to compare against the base SHA. Parameter and protection schema generators have independent deterministic stale-output checks, and dedicated Host tests compile the generated C headers. STM32 NVM backend paths are explicitly coupled to both `NVM.md` and their MCU Port owner document. These checks may not be bypassed by warning suppression or test deletion.
 
 ## Generated documentation/code
 
-Edit the owning schema, then run `python tools/bms.py schema`. Do not independently edit generated Markdown/C#/C tables or IDs. CI rejects stale generated outputs. A generator or schema change is itself a behavior/ABI change and is coupled to the corresponding owner document.
+Edit the owning schema/configuration, then run the supported generator. Do not independently edit generated Markdown/C#/C tables, IDs, linker regions or addresses. CI rejects stale generated outputs and invalid target layouts. A generator/schema/layout change is itself a behavior/ABI change and is coupled to the corresponding owner documents.
 
 ## Review rule
 

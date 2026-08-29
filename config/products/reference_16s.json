@@ -4,7 +4,7 @@
   "cell_count": 16,
   "firmware": {
     "boot_size": 12288,
-    "metadata_size": 2048
+    "persistent_size": 4096
   },
   "features": {
     "soc": true,

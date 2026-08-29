@@ -4,9 +4,9 @@ GitHub Actions is the primary software admission layer.
 
 ## Hosted gates
 
-`quality-gate`: documentation structure/change coupling, deterministic parameter/protection schema-generated-output checks, target configuration generation, source/build policy scan, Host O0 and O2 builds/tests, O0/O2 output equivalence, ASan/UBSan and Cppcheck. Generated C schema headers are also compiled by dedicated Host tests, not merely compared as text. The documentation structure gate now includes the Event Log owner document and couples event-log source changes to it.
+`quality-gate`: documentation structure/change coupling, deterministic parameter/protection schema-generated-output checks, target configuration generation, source/build policy scan, Host O0 and O2 builds/tests, O0/O2 output equivalence, ASan/UBSan and Cppcheck. Generated C schema headers are compiled by dedicated Host tests. Target generation also validates the four-page persistent-tail invariant before firmware builds start.
 
-`firmware-build`: matrix builds F030C8/F103C8 APP+Boot with arm-none-eabi-gcc O2, validates generated image budgets, emits ELF/MAP/HEX/BIN/target summary and generates/parses Keil Boot/APP project XML from the same source graph.
+`firmware-build`: matrix builds F030C8/F103C8 APP+Boot with arm-none-eabi-gcc O2, validates generated image budgets, emits ELF/MAP/HEX/BIN/target summary and generates/parses Keil Boot/APP project XML from the same source graph. The target source graph now includes the actual family-specific NVM Flash backend, so both STM32 physical adapters are strict-warning cross-compiled on every PR.
 
 `pc-build`: Windows .NET 8 restore/Release build with warnings as errors plus protocol smoke. Generated C# parameter and protection ABI definitions are compiled as part of `Bms.Protocol`.
 
@@ -24,4 +24,4 @@ Self-hosted runners connected to licensed tools or hardware must not automatical
 
 ## Interpretation
 
-Hosted green proves the checked source/configuration compiled and passed defined software tests on that commit. It does not prove real analog scaling, AFE/MOS behavior, EMI/power integrity, brownout interruption, wake behavior or safety certification.
+Hosted green proves the checked source/configuration compiled and passed defined software tests on that commit. It does not prove real analog scaling, AFE/MOS behavior, Flash brownout guarantees, EMI/power integrity, wake behavior or safety certification. STM32 NVM physical source compiling in CI is not equivalent to a real power-cut test.
