@@ -31,6 +31,7 @@ add_library(bms_common STATIC
   bootloader/core/src/bms_boot_image.c
   bootloader/core/src/bms_boot_metadata.c
   bootloader/core/src/bms_boot_policy.c
+  bootloader/core/src/bms_iap_session.c
   app/core/src/bms_protection.c
   drivers/afe/src/bms_afe_mock.c)
 

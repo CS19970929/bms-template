@@ -1,0 +1,37 @@
+#ifndef BMS_COMMANDS_H
+#define BMS_COMMANDS_H
+
+#include <stdint.h>
+
+typedef enum {
+    BMS_MSG_REQUEST = 1,
+    BMS_MSG_RESPONSE = 2,
+    BMS_MSG_EVENT = 3
+} bms_message_type_t;
+
+typedef enum {
+    BMS_CMD_DEVICE_INFO = 0x0001,
+    BMS_CMD_PROTOCOL_INFO = 0x0002,
+    BMS_CMD_IAP_INFO = 0x1000,
+    BMS_CMD_IAP_START = 0x1001,
+    BMS_CMD_IAP_WRITE = 0x1002,
+    BMS_CMD_IAP_VERIFY = 0x1003,
+    BMS_CMD_IAP_COMMIT = 0x1004,
+    BMS_CMD_IAP_ABORT = 0x1005,
+    BMS_CMD_IAP_REBOOT = 0x1006,
+    BMS_CMD_IAP_PROGRESS = 0x1007
+} bms_command_id_t;
+
+typedef enum {
+    BMS_STATUS_OK = 0,
+    BMS_STATUS_INVALID_ARGUMENT = 1,
+    BMS_STATUS_INVALID_STATE = 2,
+    BMS_STATUS_INVALID_IMAGE = 3,
+    BMS_STATUS_RANGE = 4,
+    BMS_STATUS_SEQUENCE = 5,
+    BMS_STATUS_STORAGE = 6,
+    BMS_STATUS_VERIFY = 7,
+    BMS_STATUS_INTERNAL = 255
+} bms_status_code_t;
+
+#endif

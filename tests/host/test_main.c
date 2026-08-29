@@ -4,13 +4,22 @@
 #include "bms_boot_policy.h"
 #include "bms_crc32.h"
 #include "bms_frame.h"
+#include "bms_iap_session.h"
 #include "bms_protection.h"
 #include <stdio.h>
 #include <string.h>
 
 #define CHECK(x) do { if (!(x)) { printf("FAIL:%s:%d:%s\n", __FILE__, __LINE__, #x); return 1; } } while (0)
 
-typedef struct { uint32_t base; uint8_t bytes[512]; } flash_model_t;
+typedef struct {
+    uint32_t base;
+    uint8_t bytes[512];
+    bms_boot_meta_record_t meta_a;
+    bms_boot_meta_record_t meta_b;
+    uint8_t use_b;
+    unsigned erase_count;
+    unsigned write_count;
+} flash_model_t;
 
 static int flash_read(void *ctx, uint32_t address, uint8_t *dst, size_t length)
 {
@@ -20,6 +29,44 @@ static int flash_read(void *ctx, uint32_t address, uint8_t *dst, size_t length)
     offset = (size_t)(address - flash->base);
     if ((offset > sizeof(flash->bytes)) || (length > (sizeof(flash->bytes) - offset))) return -1;
     (void)memcpy(dst, &flash->bytes[offset], length);
+    return 0;
+}
+
+static int flash_erase(void *ctx)
+{
+    flash_model_t *flash = (flash_model_t *)ctx;
+    if (flash == NULL) return -1;
+    (void)memset(flash->bytes, 0xFF, sizeof(flash->bytes));
+    flash->erase_count++;
+    return 0;
+}
+
+static int flash_write(void *ctx, uint32_t address, const uint8_t *data, size_t length)
+{
+    flash_model_t *flash = (flash_model_t *)ctx;
+    size_t offset;
+    size_t i;
+    if ((flash == NULL) || (data == NULL) || (address < flash->base)) return -1;
+    offset = (size_t)(address - flash->base);
+    if ((offset > sizeof(flash->bytes)) || (length > (sizeof(flash->bytes) - offset))) return -1;
+    for (i = 0U; i < length; ++i) {
+        if ((flash->bytes[offset + i] & data[i]) != data[i]) return -1;
+        flash->bytes[offset + i] = data[i];
+    }
+    flash->write_count++;
+    return 0;
+}
+
+static int metadata_store(void *ctx, bms_boot_meta_state_t state, const bms_image_manifest_t *image)
+{
+    flash_model_t *flash = (flash_model_t *)ctx;
+    const bms_boot_meta_record_t *current;
+    bms_boot_meta_record_t *dst;
+    if (flash == NULL) return -1;
+    current = bms_boot_metadata_select(&flash->meta_a, &flash->meta_b);
+    dst = (flash->use_b != 0U) ? &flash->meta_b : &flash->meta_a;
+    bms_boot_metadata_prepare_next(dst, current, state, image);
+    flash->use_b ^= 1U;
     return 0;
 }
 
@@ -52,7 +99,7 @@ static int test_image(void)
     flash.bytes[8]=0xAAU; flash.bytes[9]=0x55U;
     m.magic=BMS_IMAGE_MAGIC; m.manifest_version=BMS_IMAGE_MANIFEST_VERSION; m.mcu_id=BMS_MCU_STM32F030C8;
     m.product_id=42U; m.image_size=10U; m.image_crc32=bms_crc32(flash.bytes,10U);
-    c.app_start=flash.base; c.app_end_exclusive=0x0800F800UL; c.ram_start=0x20000000UL; c.ram_end_exclusive=0x20002000UL;
+    c.app_start=flash.base; c.app_end_exclusive=flash.base+(uint32_t)sizeof(flash.bytes); c.ram_start=0x20000000UL; c.ram_end_exclusive=0x20002000UL;
     c.mcu_id=BMS_MCU_STM32F030C8; c.product_id=42U;
     CHECK(bms_boot_image_validate(&m,&c,flash_read,&flash)==BMS_IMAGE_OK);
     m.image_crc32 ^= 1U; CHECK(bms_boot_image_validate(&m,&c,flash_read,&flash)==BMS_IMAGE_ERR_CRC);
@@ -79,6 +126,43 @@ static int test_policy(void)
     return 0;
 }
 
+static int test_iap(void)
+{
+    flash_model_t flash = {0};
+    bms_iap_storage_t storage = {flash_erase, flash_write, flash_read, metadata_store, &flash};
+    bms_iap_session_t session;
+    bms_image_constraints_t c = {0};
+    bms_image_manifest_t image = {0};
+    uint8_t app[10];
+    const bms_boot_meta_record_t *meta;
+
+    flash.base = 0x08003000UL;
+    (void)memset(flash.bytes, 0xFF, sizeof(flash.bytes));
+    put32(&app[0], 0x20002000UL); put32(&app[4], 0x08003101UL); app[8]=0xA5U; app[9]=0x5AU;
+    c.app_start=flash.base; c.app_end_exclusive=flash.base+(uint32_t)sizeof(flash.bytes); c.ram_start=0x20000000UL; c.ram_end_exclusive=0x20002000UL;
+    c.mcu_id=BMS_MCU_STM32F030C8; c.product_id=42U;
+    image.magic=BMS_IMAGE_MAGIC; image.manifest_version=BMS_IMAGE_MANIFEST_VERSION; image.mcu_id=c.mcu_id; image.product_id=c.product_id;
+    image.image_size=sizeof(app); image.image_crc32=bms_crc32(app,sizeof(app));
+    bms_iap_session_init(&session,&c);
+    CHECK(bms_iap_start(&session,&storage,&image)==BMS_IAP_OK); CHECK(flash.erase_count==1U);
+    meta=bms_boot_metadata_select(&flash.meta_a,&flash.meta_b); CHECK(meta!=NULL); CHECK(meta->state==(uint32_t)BMS_BOOT_META_RECEIVING);
+    CHECK(bms_iap_write_chunk(&session,&storage,0U,&app[0],8U)==BMS_IAP_OK);
+    CHECK(bms_iap_write_chunk(&session,&storage,0U,&app[0],8U)==BMS_IAP_OK_DUPLICATE);
+    CHECK(flash.write_count==1U);
+    CHECK(bms_iap_write_chunk(&session,&storage,9U,&app[9],1U)==BMS_IAP_ERR_OFFSET);
+    CHECK(bms_iap_write_chunk(&session,&storage,8U,&app[8],2U)==BMS_IAP_OK);
+    CHECK(bms_iap_verify(&session,&storage)==BMS_IAP_OK); CHECK(session.state==BMS_IAP_STATE_VERIFIED);
+    CHECK(bms_iap_commit(&session,&storage)==BMS_IAP_OK); CHECK(session.state==BMS_IAP_STATE_READY);
+    meta=bms_boot_metadata_select(&flash.meta_a,&flash.meta_b); CHECK(meta!=NULL); CHECK(meta->state==(uint32_t)BMS_BOOT_META_READY);
+
+    /* A power loss before COMMIT leaves RECEIVING metadata. Boot must treat that as non-bootable. */
+    (void)memset(&flash.meta_a,0,sizeof(flash.meta_a)); (void)memset(&flash.meta_b,0,sizeof(flash.meta_b)); flash.use_b=0U;
+    bms_iap_session_init(&session,&c); CHECK(bms_iap_start(&session,&storage,&image)==BMS_IAP_OK);
+    CHECK(bms_iap_write_chunk(&session,&storage,0U,&app[0],8U)==BMS_IAP_OK);
+    meta=bms_boot_metadata_select(&flash.meta_a,&flash.meta_b); CHECK(meta!=NULL); CHECK(meta->state==(uint32_t)BMS_BOOT_META_RECEIVING);
+    return 0;
+}
+
 static int test_protection(void)
 {
     bms_protection_t p; bms_protection_config_t c={3650,3600,1000U,500U,BMS_PROTECT_MODE_HIGH,1U};
@@ -95,14 +179,14 @@ static int test_afe_interface(void)
 {
     bms_afe_t afe; bms_afe_mock_context_t ctx = {0}; bms_afe_sample_t out;
     ctx.sample.current_ma=1234; bms_afe_mock_bind(&afe,&ctx); CHECK(afe.ops->init(&afe)==0);
-    CHECK(afe.ops->sample(&afe,&out)==0); CHECK(out.current_ma==1234); CHECK(afe.ops->set_charge_fet(&afe,1U)==0); CHECK(ctx.charge_fet==1U);
+    ctx.sample.current_ma=1234; CHECK(afe.ops->sample(&afe,&out)==0); CHECK(out.current_ma==1234); CHECK(afe.ops->set_charge_fet(&afe,1U)==0); CHECK(ctx.charge_fet==1U);
     return 0;
 }
 
 int main(void)
 {
     CHECK(test_crc()==0); CHECK(test_frame()==0); CHECK(test_image()==0); CHECK(test_metadata()==0);
-    CHECK(test_policy()==0); CHECK(test_protection()==0); CHECK(test_afe_interface()==0);
+    CHECK(test_policy()==0); CHECK(test_iap()==0); CHECK(test_protection()==0); CHECK(test_afe_interface()==0);
     printf("BMS_HOST_TESTS_PASS\n");
     return 0;
 }
