@@ -1,40 +1,44 @@
 name: firmware-build
 on:
   pull_request:
-    paths: ["app/**", "bootloader/**", "common/**", "protocol/**", "platform/**", "drivers/**", "cmake/**", "CMakeLists.txt", "CMakePresets.json", "tools/bootstrap_vendor.py", ".github/workflows/firmware-build.yml"]
+    paths: ["app/**","bootloader/**","common/**","protocol/**","platform/**","drivers/**","config/**","cmake/**","CMakeLists.txt","CMakePresets.json","tools/bootstrap_vendor.py","tools/generate_target.py",".github/workflows/firmware-build.yml"]
   push:
     branches: [main]
   workflow_dispatch:
-permissions:
-  contents: read
+permissions: {contents: read}
 jobs:
-  stm32f030c8-gcc-o2:
+  gcc-o2:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {preset: f030, family: f0, target: stm32f030c8}
+          - {preset: f103, family: f1, target: stm32f103c8}
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - name: Install ARM GCC
         run: sudo apt-get update && sudo apt-get install -y cmake ninja-build gcc-arm-none-eabi
       - name: Bootstrap pinned ST vendor subset
-        run: python3 tools/bootstrap_vendor.py
+        run: python3 tools/bootstrap_vendor.py --family ${{ matrix.family }}
       - name: Configure
-        run: cmake --preset f030
+        run: cmake --preset ${{ matrix.preset }}
       - name: Build O2 APP and Bootloader
-        run: cmake --build --preset f030
-      - name: Enforce image budgets
+        run: cmake --build --preset ${{ matrix.preset }}
+      - name: Enforce 64 KiB image budgets
         shell: bash
         run: |
-          boot=$(stat -c%s build/f030/bms_bootloader.bin)
-          app=$(stat -c%s build/f030/bms_app.bin)
+          boot=$(stat -c%s build/${{ matrix.preset }}/bms_bootloader.bin)
+          app=$(stat -c%s build/${{ matrix.preset }}/bms_app.bin)
           echo "boot=$boot bytes app=$app bytes"
           test "$boot" -le 12288
           test "$app" -le 51200
-      - name: Upload firmware artifacts
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
-          name: stm32f030c8-gcc-o2
+          name: ${{ matrix.target }}-gcc-o2
           path: |
-            build/f030/*.elf
-            build/f030/*.map
-            build/f030/*.hex
-            build/f030/*.bin
+            build/${{ matrix.preset }}/*.elf
+            build/${{ matrix.preset }}/*.map
+            build/${{ matrix.preset }}/*.hex
+            build/${{ matrix.preset }}/*.bin

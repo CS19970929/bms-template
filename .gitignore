@@ -1,5 +1,7 @@
 build/
 vendor/st/stm32f0_stdperiph_v1.5.0/
+vendor/st/stm32f10x_stdperiph_v3.5.0/
+ide/keil/generated/
 .vs/
 .idea/
 *.user
