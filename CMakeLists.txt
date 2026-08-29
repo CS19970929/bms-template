@@ -48,6 +48,7 @@ endif()
 add_library(bms_base STATIC
     common/src/bms_crc32.c
     protocol/src/bms_frame.c
+    protocol/src/bms_service.c
 )
 target_include_directories(bms_base PUBLIC
     common/include
@@ -115,39 +116,27 @@ if(BMS_BUILD_HOST_TESTS)
     )
     add_test(NAME bms_host_tests COMMAND bms_host_tests)
 
-    add_executable(bms_protection_manager_atomic_test
-        tests/host/test_protection_manager_atomic.c
-    )
-    target_link_libraries(bms_protection_manager_atomic_test PRIVATE
-        bms_app_core
-        bms_warnings
-        bms_sanitizers
-    )
+    add_executable(bms_protection_manager_atomic_test tests/host/test_protection_manager_atomic.c)
+    target_link_libraries(bms_protection_manager_atomic_test PRIVATE bms_app_core bms_warnings bms_sanitizers)
     add_test(NAME bms_protection_manager_atomic_test COMMAND bms_protection_manager_atomic_test)
 
-    add_executable(bms_nvm_power_loss_test
-        tests/host/test_nvm_power_loss.c
-    )
-    target_link_libraries(bms_nvm_power_loss_test PRIVATE
-        bms_app_core
-        bms_warnings
-        bms_sanitizers
-    )
+    add_executable(bms_nvm_power_loss_test tests/host/test_nvm_power_loss.c)
+    target_link_libraries(bms_nvm_power_loss_test PRIVATE bms_app_core bms_warnings bms_sanitizers)
     add_test(NAME bms_nvm_power_loss_test COMMAND bms_nvm_power_loss_test)
 
-    add_executable(bms_parameter_schema_test
-        tests/host/test_parameter_schema.c
-    )
+    add_executable(bms_parameter_schema_test tests/host/test_parameter_schema.c)
     target_include_directories(bms_parameter_schema_test PRIVATE generated/parameters)
     target_link_libraries(bms_parameter_schema_test PRIVATE bms_warnings bms_sanitizers)
     add_test(NAME bms_parameter_schema_test COMMAND bms_parameter_schema_test)
 
-    add_executable(bms_protection_schema_test
-        tests/host/test_protection_schema.c
-    )
+    add_executable(bms_protection_schema_test tests/host/test_protection_schema.c)
     target_include_directories(bms_protection_schema_test PRIVATE generated/protections)
     target_link_libraries(bms_protection_schema_test PRIVATE bms_warnings bms_sanitizers)
     add_test(NAME bms_protection_schema_test COMMAND bms_protection_schema_test)
+
+    add_executable(bms_protocol_service_test tests/host/test_protocol_service.c)
+    target_link_libraries(bms_protocol_service_test PRIVATE bms_base bms_warnings bms_sanitizers)
+    add_test(NAME bms_protocol_service_test COMMAND bms_protocol_service_test)
 endif()
 
 if(CMAKE_CROSSCOMPILING)
