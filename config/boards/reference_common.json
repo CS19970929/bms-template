@@ -1,0 +1,17 @@
+{
+  "name": "reference_common",
+  "port_topology": "common",
+  "features": {
+    "precharge": false,
+    "load_detect": false,
+    "charger_detect": false,
+    "buzzer": false,
+    "status_leds": 0
+  },
+  "interfaces": {
+    "afe_bus": "none",
+    "service_uart": "uart1",
+    "can": "none",
+    "ble": "external-or-none"
+  }
+}
