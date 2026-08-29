@@ -14,28 +14,34 @@ Each runtime descriptor defines ID, I32/U32/BOOL type, default, minimum, maximum
 
 ## Canonical persistence payload
 
-`bms_parameter_persistence` now defines a compiler-independent payload that can be stored inside `bms_nvm_store`; the runtime `bms_param_value_t[]` array is never written raw.
+`bms_parameter_persistence` defines a compiler-independent payload; the runtime `bms_param_value_t[]` array is never written raw.
 
-Format version 1 is little-endian:
+Format version 1 is little-endian: an 8-byte `BPAR`/version/count header plus 8-byte `(parameter ID, type, reserved, 32-bit value)` entries. Only persistent descriptors are encoded. Unknown IDs are ignored during restore; duplicate IDs, known non-persistent IDs, known type mismatches and out-of-range values reject the payload. Restore operates on staged RAM and only replaces active values after optional cross-field validation succeeds.
 
-- 8-byte header: magic `BPAR`, format version `u16`, entry count `u16`.
-- each 8-byte entry: parameter ID `u16`, type `u8`, reserved `u8=0`, canonical 32-bit value.
-- only descriptors marked persistent are encoded.
+Missing IDs retain the caller's existing value; startup code should load current product defaults before applying a stored payload. A new value representation or incompatible payload rule requires a persistence-format version change.
 
-Encoding validates the descriptor table, duplicate/non-zero IDs, type/default validity and every persisted active value before producing bytes. Restore copies active values to caller-owned staged RAM, validates the complete payload, rejects duplicate entries, known non-persistent IDs, known type mismatches and out-of-range values, optionally runs the same cross-field validator, then replaces active values only after all checks succeed.
+## Typed Parameter Store
 
-Unknown IDs are ignored so adding a new persistent parameter does not make an older descriptor set unreadable. Missing IDs retain the caller's existing value; startup code should therefore load current product defaults before applying a stored payload. A new value representation or incompatible payload rule requires a persistence-format version change.
+`bms_parameter_store` composes the canonical Parameter codec with `bms_nvm_store`. It owns no hardware and accepts the same `bms_nvm_store_io_t` callbacks used by the Host fake Flash and STM32 platform adapters.
+
+Load path:
+
+`current product defaults -> NVM latest valid record -> canonical Parameter decode into staged values -> type/range/cross-field validation -> atomic active replacement`
+
+If no valid NVM record exists, `NOT_FOUND` is distinct from corruption/I/O failure so application startup can deliberately retain defaults and log the condition rather than treating every storage problem as first boot.
+
+Commit path:
+
+`validated active values -> canonical Parameter encode -> NVM two-slot atomic commit -> readback/CRC verify`
+
+The store requires an explicit `payload_limit`. Buffer capacities must meet that limit and the limit must fit the physical NVM slot after the outer 24-byte NVM header. This prevents the generic 1 KiB slot size from forcing an F030 application to reserve two near-1 KiB scratch buffers when a product has a much smaller parameter set. Product configuration will own the chosen static buffer budget.
 
 ## Access policy
 
-`User`, `Service`, and `Factory` are write capabilities, not UI labels. Protocol handlers must authenticate/select a caller capability before invoking transaction set. Read visibility can be added separately; write access never implies direct Flash access.
-
-## Integration with NVM
-
-The parameter codec is independent of Flash and sequence/CRC. `bms_nvm_store` supplies atomic two-slot commit, sequence and outer CRC; STM32 platform callbacks supply physical erase/program. A product parameter service will compose these layers and define commit cadence, dirty tracking and startup fallback policy.
+`User`, `Service`, and `Factory` are write capabilities, not UI labels. Protocol handlers must authenticate/select a caller capability before invoking transaction set. Write access never implies direct Flash access.
 
 ## Verification
 
-Host tests cover runtime type/range/permission/transaction behavior plus persistence round-trip, signed I32 encoding, persistent-only output, unknown-ID compatibility, duplicate-entry rejection, invalid-value atomic rejection and encode-time value validation. O0/O2 equivalence and sanitizers execute the production codec.
+Host tests cover runtime transaction behavior, canonical persistence round-trip/compatibility/error atomicity and composed Parameter Store first-boot NOT_FOUND, commit/load, sequence advance, non-persistent retention and fallback to the older slot when the newest record is corrupted. O0/O2 equivalence and sanitizers execute production sources.
 
-Status: stable Parameter ABI schema + runtime transaction core + canonical ID-based persistence codec **Implemented**; product descriptor generation, typed NVM service/dirty policy and protocol Parameter handlers **Planned**.
+Status: stable Parameter ABI schema + runtime transaction core + canonical persistence codec + typed two-slot Parameter Store **Implemented**; product descriptor generation/dirty cadence and protocol Parameter handlers **Planned**.
