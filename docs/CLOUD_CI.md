@@ -1,59 +1,27 @@
-# Cloud build and quality gates
+# Cloud CI and self-hosted verification
 
-GitHub-hosted runners are the default software admission environment.
+GitHub Actions is the primary software admission layer.
 
-## `quality-gate`
+## Hosted gates
 
-Ubuntu runner:
+`quality-gate`: target configuration generation, source/build policy scan, documentation structure/change-coupling gate, Host O0 and O2 builds/tests, O0/O2 output equivalence, ASan/UBSan and Cppcheck.
 
-- resolves and validates every target composition;
-- scans owned production source for forbidden dynamic allocation and suppression patterns;
-- rejects `-Ofast` and `-ffast-math` in build/config scripts;
-- builds and tests production core at O0;
-- builds and tests the same production core at O2;
-- requires byte-identical O0/O2 test output;
-- runs ASan + UBSan;
-- runs Cppcheck as an error gate.
+`firmware-build`: matrix builds F030C8/F103C8 APP+Boot with arm-none-eabi-gcc O2, validates generated image budgets, emits ELF/MAP/HEX/BIN/target summary and generates/parses Keil Boot/APP project XML from the same source graph.
 
-## `firmware-build`
+`pc-build`: Windows .NET 8 restore/Release build with warnings as errors plus protocol smoke.
 
-Ubuntu runner with `arm-none-eabi-gcc`:
+`cloud-verify`: manually aggregates hosted software gates.
 
-- bootstraps the pinned, hash-verified STM32 StdPeriph/CMSIS subset;
-- builds APP and IAP/Bootloader at O2 for every supported MCU target in the matrix;
-- produces ELF, MAP, HEX and BIN;
-- checks image size against the generated target Flash layout;
-- uploads firmware and `target-summary.json` as Actions artifacts.
+## Self-hosted gates
 
-Current reference matrix contains STM32F030C8 and STM32F103C8.
+`keil-compat`: manual `[self-hosted, Windows, Keil]` runner with licensed/local UV4/ARMCC. It is deliberately not an automatic fork-PR executor.
 
-## `pc-build`
+HIL: future manual/release-gated runner attached to real BMS hardware/fixture. See `HIL.md`.
 
-Windows runner with .NET 8:
+## Security boundary
 
-- restores the PC solution;
-- builds Release with warnings as errors;
-- runs protocol smoke tests.
+Self-hosted runners connected to licensed tools or hardware must not automatically execute untrusted external PR code. Use controlled branches/manual dispatch and minimum repository permissions.
 
-## `cloud-verify`
+## Interpretation
 
-Manual one-click aggregate workflow. It calls `quality-gate`, `firmware-build`, and `pc-build` as reusable workflows and fails unless all required software gates pass.
-
-## What remains self-hosted
-
-Public GitHub runners do not replace hardware-dependent validation:
-
-- ARMCC/Keil compatibility build: use a licensed Windows self-hosted runner with Keil installed.
-- HIL: use a self-hosted runner physically connected to ST-Link/J-Link, programmable power/load equipment, CAN/UART/BLE interfaces and the BMS board.
-
-A release should eventually require:
-
-```text
-Cloud quality
-  + GCC O2 target build
-  + PC Release build
-  + Keil compatibility build
-  + HIL evidence
-```
-
-Cloud success proves the source/toolchain checks passed; it does not prove analog hardware behavior, AFE protection timing, MOS operation or brownout/power-loss behavior on a real board.
+Hosted green proves the checked source/configuration compiled and passed defined software tests on that commit. It does not prove real analog scaling, AFE/MOS behavior, EMI/power integrity, brownout interruption, wake behavior or safety certification.

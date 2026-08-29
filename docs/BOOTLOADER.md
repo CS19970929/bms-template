@@ -1,30 +1,46 @@
-# Recovery Bootloader Contract
+# Recovery Bootloader / IAP
 
-The recovery bootloader is the software root of recoverability. APP failure must not remove the ability to reflash APP.
+The Bootloader is the highest-safety software component. Its primary contract is: **if Boot code/Flash remains physically intact and the MCU can execute, an invalid, crashed or partially updated APP must not remove the ability to reflash APP.**
 
-Rules:
+## Architecture decision
 
-- single small immutable bootloader on 64 KiB targets; no dual-IAP complexity;
-- APP cannot erase/program boot flash; production uses MCU write protection where available;
-- never jump based only on non-blank flash;
-- validate manifest target, image bounds, CRC32, initial MSP and Thumb reset handler;
-- redundant metadata records use sequence + CRC; newest valid record wins;
-- invalid/interrupted image stays in recovery;
-- force/recovery pin, explicit upgrade request and repeated boot failure can force recovery;
-- watchdog-reset before APP health confirmation returns to recovery policy;
-- upgrade transport is independent of UART/BLE/CAN implementation.
+For 64 KiB F030C8/F103C8 targets use one small protected Recovery Boot, not dual IAP. Boot V1 is not remotely self-updated. Boot replacement is a factory/service operation through SWD or a separately designed future mechanism.
 
-## IAP session invariants
+## Flash ownership
 
-The transport-independent production IAP core implements `IDLE -> ERASING -> RECEIVING -> VERIFYING -> VERIFIED -> READY` with an explicit `INVALID` path.
+- Boot owns its immutable code range and boot metadata backend.
+- APP owns only APP/data ranges exposed by platform APIs.
+- Every erase/program API must range-check against generated layout.
+- APP has no API capable of modifying Boot.
 
-- START stores `RECEIVING` metadata before erasing APP. A power cut from that point cannot leave metadata that authorizes boot.
-- WRITE is offset-based and bounds checked against both declared image size and APP flash range.
-- only the next sequential offset is accepted; an exact retransmission of the immediately previous chunk is accepted idempotently only after flash readback matches;
-- VERIFY requires every declared byte to have been received and then re-runs complete image CRC/vector/target validation from flash;
-- COMMIT is the only operation that writes `READY` metadata;
-- ABORT/failed validation records `INVALID`.
+See `FLASH_LAYOUT.md`.
 
-This means an interrupted single-slot update intentionally sacrifices the old APP contents but never sacrifices the immutable recovery path.
+## APP validity before jump
 
-STM32F030 Cortex-M0 APP vector relocation must use the STM32F0-supported SRAM/remap mechanism; STM32F103 can use VTOR. Do not share an incorrect jump implementation between families.
+Boot must reject APP unless all required checks pass: target/product identity, header/version, declared image length and address range, payload CRC32, vector location, initial MSP in valid SRAM, reset handler in APP Flash and Thumb state. A failed check enters Recovery; Boot never jumps optimistically.
+
+F030 Cortex-M0 and F103 Cortex-M3 use different vector relocation mechanisms; the platform layer owns that distinction.
+
+## Update state machine
+
+`IDLE -> ENTER_UPDATE -> ERASING -> RECEIVING -> VERIFYING -> READY/INVALID -> COMMIT/RECOVERY`
+
+Current portable IAP core implements START/ERASE/WRITE/VERIFY/COMMIT/ABORT/REBOOT semantics with ordered range checking, duplicate-chunk idempotency, Flash readback and whole-image verification.
+
+## Metadata
+
+Boot metadata is redundant and sequence-numbered. A record is accepted only if its own integrity check is valid. Power loss during a metadata update must leave either the previous record or the new record selectable; an ambiguous/invalid update falls back to Recovery rather than APP jump.
+
+## Reset/watchdog policy
+
+Planned target policy records boot attempts and APP healthy confirmation. Repeated watchdog/startup failures may force Recovery. Single-slot 64 KiB products do not promise old-image rollback; they promise recovery reflashing.
+
+## Transport independence
+
+IAP session/service owns update semantics and must not know UART/BLE/CAN. Transport adapters provide framed bytes and reconnect behavior. Host tooling may validate packages, but Boot performs its own independent validation.
+
+## Required verification
+
+Host: image boundary tests, malformed headers, CRC/vector failures, duplicate/reordered/out-of-range chunks, metadata corruption and simulated power interruption at every erase/write/commit boundary.
+
+HIL: valid/invalid APP boot, interrupted erase/write/verify/commit, repeated reset/watchdog, forced-recovery entry, reconnect/update and proof that Boot remains reflashing-capable.

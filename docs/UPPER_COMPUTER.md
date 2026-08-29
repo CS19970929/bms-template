@@ -1,12 +1,27 @@
-# PC Tool
+# PC upper computer
 
-The desktop tool is one product, not separate serial and BLE applications.
+The desktop tool is a .NET 8 Windows application architecture with one domain client and pluggable transports.
 
-- `Bms.Protocol`: exact application frame codec shared conceptually with firmware.
-- `Bms.Transport`: `IBmsTransport`, serial implementation and Windows BLE GATT implementation.
-- `Bms.Client`: stream reassembly + common command client.
-- `Bms.Tool`: .NET 8 WPF UI shell.
+## Layers
 
-Serial and BLE therefore feed the same `BmsClient`. Future CAN/TCP transports must implement `IBmsTransport` rather than fork command/UI logic.
+- `Bms.Protocol`: frame codec, IDs, errors and protocol-version/capability model.
+- `Bms.Transport`: `ITransport`; Serial and Windows BLE implementations, later CAN/TCP.
+- `Bms.Device`: `BmsClient`, typed device/protection/parameter/log APIs.
+- `Bms.Upgrade`: firmware package validation and Boot/IAP orchestration.
+- UI: dashboard, cells/temps/current/SOC, MOS/state/protection/alarm, parameters/calibration, logs, upgrade, diagnostics and communication console.
 
-BLE UUIDs are intentionally runtime/config values. A later `legacy_v1` adapter will map existing BLE application frames to the new service API without contaminating domain internals.
+Transport classes do not contain BMS business rules. UI does not parse frames directly.
+
+## Upgrade flow
+
+`select package -> validate manifest/target/checksums -> request APP enter IAP -> reconnect Boot -> query info -> START/ERASE/WRITE with progress/retry -> VERIFY -> COMMIT -> reboot -> reconnect APP -> confirm version/health`
+
+The PC validator improves usability but is not a trust boundary; Boot validates independently.
+
+## Diagnostics
+
+The tool should expose raw framed logs, sequence/CRC/timeout/retry counters, connection state, device identity, reset/boot reason, firmware/build/protocol versions and IAP result.
+
+## Current status
+
+Implemented scaffolding: shared protocol/client, Serial transport, Windows BLE transport and cloud .NET Release/protocol smoke build. UI, full service model, firmware package and upgrade workflow are planned.
